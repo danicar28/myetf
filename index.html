@@ -65,6 +65,15 @@
             border-top-color: #64748b;
             border-bottom-color: #64748b;
         }
+        /* --- Vista compatta (telefono): le card sostituiscono le tabelle larghe --- */
+        .card-view { display: none; }
+        .compact .card-view { display: block; }
+        .compact .tbl-view { display: none; }
+        details > summary { list-style: none; }
+        details > summary::-webkit-details-marker { display: none; }
+        .chev { display: inline-block; transition: transform .15s; }
+        details[open] > summary .chev { transform: rotate(180deg); }
+        .compact header .px-3, .compact header .px-3\.5 { padding-left: .5rem; padding-right: .5rem; }
     </style>
 </head>
 <body class="bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-200 min-h-screen flex flex-col">
@@ -75,7 +84,7 @@
                 <div class="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-sm">
                     <i data-lucide="table-2" class="w-5 h-5"></i>
                 </div>
-                <div>
+                <div class="hidden sm:block">
                     <h1 class="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white leading-tight">ETF Portfolio Tracker</h1>
                     <p class="text-[11px] text-slate-500 dark:text-slate-400 hidden sm:block">Monitoraggio portafoglio e fiscalità ETF (26% Azionario / 18% Obbligazionario)</p>
                 </div>
@@ -99,7 +108,7 @@
 
                 <button onclick="openModal()" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm transition-colors">
                     <i data-lucide="plus" class="w-4 h-4"></i>
-                    <span>Aggiungi ETF</span>
+                    <span class="hidden sm:inline">Aggiungi ETF</span>
                 </button>
 
                 <div id="syncBox" class="hidden items-center gap-2">
@@ -129,6 +138,7 @@
             <button type="button" onclick="renameActivePortfolio()" class="px-2.5 py-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg">Rinomina</button>
             <button type="button" id="pfDeleteBtn" onclick="deleteActivePortfolio()" class="px-2.5 py-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg text-rose-700 dark:text-rose-300 disabled:opacity-40 disabled:cursor-not-allowed">Elimina</button>
             <span class="text-[11px] text-slate-500 dark:text-slate-400 ml-auto hidden sm:inline">Ogni portafoglio ha il proprio foglio ETF e le proprie cedole.</span>
+            <button type="button" onclick="toggleViewMode()" class="ml-auto sm:ml-0 px-2.5 py-1.5 text-xs font-medium bg-indigo-100 hover:bg-indigo-200 text-indigo-800 dark:bg-indigo-950 dark:hover:bg-indigo-900 dark:text-indigo-300 rounded-lg" title="Passa da tabella completa a card compatte"><span id="viewModeLabel">Vista compatta</span></button>
         </section>
 
         <!-- Summary Cards (KPI) -->
@@ -173,10 +183,10 @@
                     <span class="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300">Foglio Portafoglio ETF</span>
                     <span id="row-count" class="px-2 py-0.5 text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 rounded-full">0</span>
                 </div>
-                <span class="text-xs text-slate-500 dark:text-slate-400">Clicca su un grafico per ingrandirlo • Passa il mouse sulle celle per i dettagli</span>
+                <span class="hidden md:inline text-xs text-slate-500 dark:text-slate-400">Clicca su un grafico per ingrandirlo • Passa il mouse sulle celle per i dettagli</span>
             </div>
 
-            <div class="overflow-x-auto w-full p-2 sm:p-3 bg-white dark:bg-slate-900">
+            <div class="tbl-view overflow-x-auto w-full p-2 sm:p-3 bg-white dark:bg-slate-900">
                 <table class="sheet-table w-full text-center whitespace-nowrap text-xs sm:text-[13px]">
                     <thead>
                         <tr class="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold text-xs">
@@ -230,6 +240,7 @@
                     </tfoot>
                 </table>
             </div>
+            <div id="etf-cards" class="card-view p-2 space-y-2"></div>
         </section>
 
         <!-- Sezione Cedole -->
@@ -261,7 +272,7 @@
                     <button type="button" onclick="resetCedoleFilter()" class="px-2 py-1 text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg">Reset</button>
                 </div>
             </div>
-            <div class="overflow-x-auto w-full p-2 sm:p-3">
+            <div class="tbl-view overflow-x-auto w-full p-2 sm:p-3">
                 <table class="sheet-table w-full text-center whitespace-nowrap text-xs sm:text-[13px]">
                     <thead><tr class="bg-white dark:bg-slate-800 font-bold text-xs">
                         <th class="py-2.5 px-3">Ticker</th><th class="py-2.5 px-3">Cadenza</th><th class="py-2.5 px-3">Dividendo<br>x1 quota</th><th class="py-2.5 px-3">Valuta<br>dividendo</th><th class="py-2.5 px-3">Cambio<br>→ EUR</th>
@@ -271,6 +282,7 @@
                     <tfoot id="cedole-foot"></tfoot>
                 </table>
             </div>
+            <div id="cedole-cards" class="card-view p-2 space-y-2"></div>
             <p class="px-4 pb-3 text-xs text-slate-500 dark:text-slate-400">Lorda = dividendo x1 quota × quote acquistate × cambio. Netta = lorda × (1 − tasse), con l'aliquota della tabella sopra. Dividendo, valuta, data di stacco e di pagamento: stockanalysis.com (Borsa Italiana, dati S&amp;P Global), ultima cedola annunciata: le etichette indicano se stacco e pagamento sono passati o futuri. Cambio da Yahoo (<code>USDEUR=X</code>, come GOOGLEFINANCE("USDEUR")). Le righe con * non hanno trovato dati lì: usano Yahoo e la valuta del fondo, modificabile, con data di pagamento da inserire. Il filtro mese/anno usa la data di pagamento (o di stacco, a scelta): con un filtro attivo le righe senza quella data vengono nascoste.</p>
         </section>
 
@@ -344,6 +356,8 @@
         // --- INIZIALIZZAZIONE ---
         window.addEventListener('DOMContentLoaded', () => {
             initTheme();
+            applyViewMode();
+            window.addEventListener('resize', applyViewMode);
             loadPortfolio();
             renderAll();
             lucide.createIcons();
@@ -356,6 +370,107 @@
             if (!getProxyPrefix()) return;
             const stale = portfolio.some(i => !i.histDates || !i.updatedAt || Date.now() - new Date(i.updatedAt) > 12 * 3600 * 1000);
             if (stale) fetchMilanMarketData();
+        }
+
+        // --- VISTA COMPATTA (telefono) ---
+        // Preferenza salvata nel browser: 'compact' | 'table'; se assente, compatta sotto i 640 px di larghezza.
+        const VIEW_KEY = 'etf_view_mode';
+        const compactOpen = new Set();
+        function isCompact() {
+            let v = null;
+            try { v = localStorage.getItem(VIEW_KEY); } catch (e) {}
+            if (v === 'compact') return true;
+            if (v === 'table') return false;
+            return window.matchMedia('(max-width: 639px)').matches;
+        }
+        function applyViewMode() {
+            const c = isCompact();
+            document.body.classList.toggle('compact', c);
+            const l = document.getElementById('viewModeLabel');
+            if (l) l.textContent = c ? 'Vista tabella' : 'Vista compatta';
+        }
+        function toggleViewMode() {
+            try { localStorage.setItem(VIEW_KEY, isCompact() ? 'table' : 'compact'); } catch (e) {}
+            applyViewMode();
+        }
+        function toggleCompactOpen(id, open) { if (open) compactOpen.add(id); else compactOpen.delete(id); }
+        function confirmDeleteETF(id) {
+            const item = portfolio.find(e => e.id === id);
+            if (item && confirm(`Rimuovere ${item.ticker} dal portafoglio?`)) deleteETF(id);
+        }
+        function fmtQty(v) { return Number(v || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 4 }); }
+
+        function buildEtfCard(item) {
+            const m = calculateMetrics(item);
+            const hasShares = item.shares > 0;
+            const up = 'text-emerald-600 dark:text-emerald-400', down = 'text-red-600 dark:text-red-400';
+            const netCol = !hasShares ? 'text-slate-600 dark:text-slate-300' : (m.diffNetta >= 0 ? up : down);
+            const lorCol = !hasShares ? 'text-slate-600 dark:text-slate-300' : (m.diffLorda >= 0 ? up : down);
+            const varTxt = m.varPerc !== null ? ` · ${fmtNumber(m.varPerc, 1)} %` : '';
+            const spark = (item.histDates && item.history.length > 1) ? generateSheetBlueLineSVG(item.history) : '';
+            const row = (k, v, cls = '') => `<span class="text-slate-500 dark:text-slate-400">${k}</span><span class="text-right font-semibold ${cls}">${v}</span>`;
+            return `<details ${compactOpen.has(item.id) ? 'open' : ''} ontoggle="toggleCompactOpen('${item.id}', this.open)" class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+                <summary class="flex items-center gap-3 px-3 py-2.5 cursor-pointer select-none">
+                    <div class="min-w-0 flex-1">
+                        <div class="font-bold text-sm text-slate-900 dark:text-white">${item.ticker}</div>
+                        <div class="text-[11px] text-slate-500 dark:text-slate-400">${fmtPrice(item.currPrice)} € · ${item.dividend}</div>
+                    </div>
+                    <div class="text-right shrink-0">
+                        <div class="font-semibold text-sm text-slate-900 dark:text-white">${fmtCurrency(m.attualeTot)}</div>
+                        <div class="text-[11px] font-semibold ${netCol}">${hasShares ? fmtCurrency(m.diffNetta) : '—'}${varTxt}</div>
+                    </div>
+                    <span class="chev text-slate-400">▾</span>
+                </summary>
+                <div class="px-3 pb-3 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
+                    <div class="grid grid-cols-2 gap-x-3 gap-y-1.5">
+                        ${row('Quote', fmtQty(item.shares))}
+                        ${row("Valore d'acquisto", fmtPrice(item.buyPrice) + ' €')}
+                        ${row('Valore di carico', fmtCurrency(m.carico))}
+                        ${row('Differenza lorda', fmtCurrency(m.diffLorda), lorCol)}
+                        ${row('Differenza netta', fmtCurrency(m.diffNetta), netCol)}
+                        ${row('Tasse', Math.round(m.taxRate * 100) + '% (' + fmtCurrency(m.tasse) + ')')}
+                        ${row('Min / Max 52', fmtPrice(item.low52) + ' — ' + fmtPrice(item.high52))}
+                        ${row('Variazione giorno', (item.change >= 0 ? '+' : '') + fmtPrice(item.change), item.change >= 0 ? up : down)}
+                        ${row('TER', fmtNumber(item.ter, 2) + '%')}
+                        ${row('ISIN', item.isin)}
+                    </div>
+                    ${spark ? `<div class="mt-2 flex justify-center cursor-pointer" onclick="openChartModal('${item.id}')" title="Clicca per ingrandire">${spark}</div>` : ''}
+                    <div class="mt-3 flex items-center gap-2">
+                        <button onclick="editETF('${item.id}')" class="flex-1 px-3 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg">Modifica</button>
+                        <a href="https://www.justetf.com/it/etf-profile.html?isin=${encodeURIComponent(item.isin)}" target="_blank" rel="noopener noreferrer" class="flex-1 px-3 py-2 text-xs font-semibold text-center text-blue-700 dark:text-blue-300 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg">justETF</a>
+                        <button onclick="confirmDeleteETF('${item.id}')" class="px-3 py-2 text-xs font-semibold text-red-700 dark:text-red-300 bg-red-50 hover:bg-red-100 dark:bg-red-950/60 dark:hover:bg-red-950 rounded-lg">Elimina</button>
+                    </div>
+                </div>
+            </details>`;
+        }
+
+        function buildCedolaCard(item) {
+            const m = cedolaMetrics(item);
+            const auto = item.divSrc === 'stockanalysis';
+            const na = item.shares > 0 ? 'n/d' : '—';
+            const ex = item.lastDiv && item.lastDiv.date;
+            const inline = iso => iso ? `${fmtDate(iso)} ${dateBadge(iso)}` : '—';
+            const opts = ['EUR', 'USD', 'GBP', 'CHF'].map(c => `<option value="${c}" ${c === m.cur ? 'selected' : ''}>${c}</option>`).join('');
+            const inp = 'px-1.5 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded';
+            return `<div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-xs">
+                <div class="flex items-center gap-3">
+                    <div class="min-w-0 flex-1">
+                        <div class="font-bold text-sm text-slate-900 dark:text-white">${item.ticker}</div>
+                        <div class="text-[11px] text-slate-500 dark:text-slate-400">${item.dividend}${m.perShare !== null ? ' · ' + fmtDiv(m.perShare) + ' ' + m.cur : ''}</div>
+                    </div>
+                    <div class="text-right shrink-0">
+                        <div class="font-bold text-sm text-emerald-600 dark:text-emerald-400">${m.netta !== null ? fmtCurrency(m.netta) : na}</div>
+                        <div class="text-[11px] text-slate-500 dark:text-slate-400">lorda ${m.lorda !== null ? fmtCurrency(m.lorda) : na}</div>
+                    </div>
+                </div>
+                <div class="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 items-center text-slate-600 dark:text-slate-300">
+                    <span class="text-slate-500 dark:text-slate-400">Stacco</span><span>${inline(ex)}</span>
+                    <span class="text-slate-500 dark:text-slate-400">Pagamento</span>
+                    <span>${auto ? inline(item.payDate) : `<input type="date" value="${item.payDate || ''}" onchange="setPayDate('${item.id}', this.value)" class="${inp}">${item.payDate ? ' ' + dateBadge(item.payDate) : ''}`}</span>
+                    ${auto ? '' : `<span class="text-slate-500 dark:text-slate-400">Valuta *</span><span><select onchange="setDivCur('${item.id}', this.value)" class="${inp}">${opts}</select></span>`}
+                    ${m.cur !== 'EUR' ? `<span class="text-slate-500 dark:text-slate-400">Cambio → EUR</span><span>${m.fx !== null ? fmtNumber(m.fx, 4) : 'n/d'}</span>` : ''}
+                </div>
+            </div>`;
         }
 
         // --- PORTAFOGLI MULTIPLI ---
@@ -867,7 +982,7 @@
         }
         function dateCell(iso) { return iso ? `${fmtDate(iso)}<br>${dateBadge(iso)}` : '—'; }
 
-        function fmtDiv(v) { return Number(v).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 5 }); }
+        function fmtDiv(v) { return Number(v).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 5 }); }
 
         function setDivCur(id, cur) {
             const item = portfolio.find(e => e.id === id);
@@ -904,7 +1019,7 @@
         }
 
         function renderCedole() {
-            const body = document.getElementById('cedole-body'), foot = document.getElementById('cedole-foot');
+            const body = document.getElementById('cedole-body'), foot = document.getElementById('cedole-foot'), cardsEl = document.getElementById('cedole-cards');
             const hideNoShares = document.getElementById('cedoleHideNoShares').checked;
             const allRows = portfolio.filter(i => i.dividend !== 'Accumulo' && (!hideNoShares || i.shares > 0));
 
@@ -927,11 +1042,13 @@
             if (!allRows.length) {
                 body.innerHTML = '<tr><td colspan="9" class="py-6 text-slate-500 dark:text-slate-400">' + (hideNoShares && portfolio.some(i => i.dividend !== 'Accumulo') ? 'Nessun ETF a cedola con quote in portafoglio.' : 'Nessun ETF a cedola in portafoglio.') + '</td></tr>';
                 foot.innerHTML = '';
+                cardsEl.innerHTML = '<div class="py-6 text-center text-xs text-slate-500 dark:text-slate-400">' + body.textContent.trim() + '</div>';
                 return;
             }
             if (!rows.length) {
                 body.innerHTML = '<tr><td colspan="9" class="py-6 text-slate-500 dark:text-slate-400">Nessuna cedola con data di ' + (basis === 'ex' ? 'stacco' : 'pagamento') + ' nel periodo selezionato.</td></tr>';
                 foot.innerHTML = '';
+                cardsEl.innerHTML = '<div class="py-6 text-center text-xs text-slate-500 dark:text-slate-400">' + body.textContent.trim() + '</div>';
                 return;
             }
             let sl = 0, sn = 0;
@@ -958,6 +1075,15 @@
                     ${auto ? `<td class="${cell}">${dateCell(item.payDate)}</td>` : `<td class="py-1 px-2"><input type="date" value="${item.payDate || ''}" onchange="setPayDate('${item.id}', this.value)" class="px-1.5 py-0.5 bg-amber-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded">${item.payDate ? '<br>' + dateBadge(item.payDate) : ''}</td>`}
                 </tr>`;
             }).join('');
+            cardsEl.innerHTML = rows.map(buildCedolaCard).join('') + `
+                <div class="rounded-xl border-2 border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-xs">
+                    <div class="font-bold text-sm mb-1.5">Totale${filtering ? ' (filtrato)' : ''}</div>
+                    <div class="grid grid-cols-2 gap-x-3 gap-y-1">
+                        <span class="text-slate-500 dark:text-slate-400">Cedole lorde</span><span class="text-right font-semibold">${fmtCurrency(sl)}</span>
+                        <span class="text-slate-500 dark:text-slate-400">Cedole nette</span><span class="text-right font-bold text-emerald-600 dark:text-emerald-400">${fmtCurrency(sn)}</span>
+                    </div>
+                    ${anyFuture ? '<div class="mt-1 text-[10px] text-amber-700 dark:text-amber-400">include cedole non ancora pagate</div>' : ''}
+                </div>`;
             foot.innerHTML = `<tr class="font-bold">
                 <td colspan="5" class="py-2.5 px-4 text-right !border-0">Totale${filtering ? ' (filtrato)' : ''}${anyFuture ? '<br><span class="text-[10px] font-normal text-amber-700 dark:text-amber-400">include cedole non ancora pagate</span>' : ''}</td>
                 <td class="total-box py-2.5 px-3 bg-sheet-totalBg dark:bg-sheet-totalDark">${fmtCurrency(sl)}</td>
@@ -1054,6 +1180,7 @@
             document.getElementById('row-count').textContent = filtered.length;
             const tbody = document.getElementById('etf-table-body');
             const tfoot = document.getElementById('etf-table-foot');
+            const cardsEl = document.getElementById('etf-cards');
 
             if (filtered.length === 0) {
                 tbody.innerHTML = `
@@ -1064,6 +1191,7 @@
                     </tr>
                 `;
                 tfoot.innerHTML = '';
+                cardsEl.innerHTML = '<div class="py-8 text-center text-sm text-slate-500 dark:text-slate-400">' + (portfolio.length === 0 ? 'Questo portafoglio è vuoto: usa “Aggiungi ETF” oppure “Importa dati”.' : 'Nessun ETF trovato con i filtri selezionati.') + '</div>';
                 return;
             }
 
@@ -1278,6 +1406,19 @@
                     <td colspan="6" class="!border-0"></td>
                 </tr>
             `;
+
+            const pos = v => v >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400';
+            cardsEl.innerHTML = filtered.map(buildEtfCard).join('') + `
+                <div class="rounded-xl border-2 border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-xs">
+                    <div class="font-bold text-sm mb-1.5">Totale${filtered.length !== portfolio.length ? ' (filtrato)' : ''}</div>
+                    <div class="grid grid-cols-2 gap-x-3 gap-y-1">
+                        <span class="text-slate-500 dark:text-slate-400">Valore di carico</span><span class="text-right font-semibold">${fmtCurrency(sumCarico)}</span>
+                        <span class="text-slate-500 dark:text-slate-400">Valore attuale</span><span class="text-right font-semibold">${fmtCurrency(sumAttuale)}</span>
+                        <span class="text-slate-500 dark:text-slate-400">Variazione</span><span class="text-right font-semibold ${pos(totVarPerc)}">${fmtNumber(totVarPerc, 1)} %</span>
+                        <span class="text-slate-500 dark:text-slate-400">Differenza lorda</span><span class="text-right font-semibold ${pos(sumDiffLorda)}">${fmtCurrency(sumDiffLorda)}</span>
+                        <span class="text-slate-500 dark:text-slate-400">Differenza netta</span><span class="text-right font-bold ${pos(sumDiffNetta)}">${fmtCurrency(sumDiffNetta)}</span>
+                    </div>
+                </div>`;
 
             lucide.createIcons();
         }
@@ -1665,18 +1806,18 @@
         // --- FORMATTAZIONE E UTILITÀ ---
         function fmtCurrency(val) {
             const num = Number(val) || 0;
-            return num.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+            return num.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
         }
 
         function fmtPrice(val) {
             const num = Number(val) || 0;
             const decimals = (Math.abs(num * 100) % 1 !== 0) ? 3 : 2;
-            return num.toLocaleString('it-IT', { minimumFractionDigits: decimals, maximumFractionDigits: 3 });
+            return num.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: decimals, maximumFractionDigits: 3 });
         }
 
         function fmtNumber(val, decimals = 2) {
             const num = Number(val) || 0;
-            return num.toLocaleString('it-IT', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+            return num.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: decimals, maximumFractionDigits: decimals });
         }
 
         function copyISIN(isin) {
