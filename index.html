@@ -6,7 +6,7 @@
     <title>ETF Portfolio Tracker Pro</title>
     <!-- PWA -->
     <link rel="manifest" href="manifest.webmanifest">
-    <meta name="theme-color" content="#1d4ed8">
+    <meta name="theme-color" id="themeColorMeta" content="#f1f5f9">
     <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
     <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -255,31 +255,31 @@
 
         <!-- Sezione Cedole -->
         <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-800 shadow-sm overflow-hidden">
-            <div class="px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2 bg-slate-50 dark:bg-slate-900">
+            <div class="px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center gap-x-2 gap-y-2 bg-slate-50 dark:bg-slate-900">
                 <span class="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300">Cedole (ultima distribuzione)</span>
                 <span id="cedole-pf" class="text-xs font-medium text-slate-500 dark:text-slate-400"></span>
                 <span id="cedole-count" class="px-2 py-0.5 text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 rounded-full">0</span>
-                <div class="ml-auto flex flex-wrap items-center gap-1.5">
-                    <select id="cedoleBasis" onchange="renderCedole()" title="Data usata dal filtro" class="px-2 py-1 text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <div class="w-full sm:w-auto sm:ml-auto grid grid-cols-6 sm:flex sm:flex-wrap items-center gap-1.5">
+                    <select id="cedoleBasis" onchange="renderCedole()" title="Data usata dal filtro" class="col-span-2 min-w-0 w-full sm:w-auto px-2 py-1 text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
                         <option value="pay">Per pagamento</option>
                         <option value="ex">Per stacco</option>
                     </select>
-                    <select id="cedoleMonth" onchange="renderCedole()" class="px-2 py-1 text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <select id="cedoleMonth" onchange="renderCedole()" class="col-span-2 min-w-0 w-full sm:w-auto px-2 py-1 text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
                         <option value="ALL">Tutti i mesi</option>
                         <option value="01">Gennaio</option><option value="02">Febbraio</option><option value="03">Marzo</option>
                         <option value="04">Aprile</option><option value="05">Maggio</option><option value="06">Giugno</option>
                         <option value="07">Luglio</option><option value="08">Agosto</option><option value="09">Settembre</option>
                         <option value="10">Ottobre</option><option value="11">Novembre</option><option value="12">Dicembre</option>
                     </select>
-                    <select id="cedoleYear" onchange="renderCedole()" class="px-2 py-1 text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <select id="cedoleYear" onchange="renderCedole()" class="col-span-2 min-w-0 w-full sm:w-auto px-2 py-1 text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
                         <option value="ALL">Tutti gli anni</option>
                     </select>
-                    <label class="flex items-center gap-1 px-2 py-1 text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg cursor-pointer select-none">
+                    <label class="col-span-6 flex items-center gap-1 px-2 py-1 text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg cursor-pointer select-none">
                         <input type="checkbox" id="cedoleHideNoShares" checked onchange="renderCedole()" class="accent-indigo-600">
                         Escludi ETF senza quote
                     </label>
-                    <button type="button" onclick="setCedoleCurrentMonth()" class="px-2 py-1 text-xs font-semibold bg-indigo-100 hover:bg-indigo-200 text-indigo-800 dark:bg-indigo-950 dark:hover:bg-indigo-900 dark:text-indigo-300 rounded-lg">Mese corrente</button>
-                    <button type="button" onclick="resetCedoleFilter()" class="px-2 py-1 text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg">Reset</button>
+                    <button type="button" onclick="setCedoleCurrentMonth()" class="col-span-3 px-2 py-1.5 sm:py-1 text-xs font-semibold bg-indigo-100 hover:bg-indigo-200 text-indigo-800 dark:bg-indigo-950 dark:hover:bg-indigo-900 dark:text-indigo-300 rounded-lg">Mese corrente</button>
+                    <button type="button" onclick="resetCedoleFilter()" class="col-span-3 px-2 py-1.5 sm:py-1 text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg">Reset</button>
                 </div>
             </div>
             <div class="tbl-view overflow-x-auto w-full p-2 sm:p-3">
@@ -1786,6 +1786,11 @@
             item.metaAt = Date.now();
         }
 
+        function syncThemeColor() {
+            const m = document.getElementById('themeColorMeta');
+            if (m) m.setAttribute('content', document.documentElement.classList.contains('dark') ? '#0b1120' : '#f1f5f9');
+        }
+
         function toggleTheme() {
             const html = document.documentElement;
             const icon = document.getElementById('theme-icon');
@@ -1798,6 +1803,7 @@
                 localStorage.theme = 'dark';
                 if (icon) icon.setAttribute('data-lucide', 'sun');
             }
+            syncThemeColor();
             lucide.createIcons();
         }
 
@@ -1811,6 +1817,7 @@
                 html.classList.remove('dark');
                 if (icon) icon.setAttribute('data-lucide', 'moon');
             }
+            syncThemeColor();
         }
 
         // --- FORMATTAZIONE E UTILITÀ ---

@@ -1,6 +1,6 @@
 // Service worker: guscio dell'app disponibile offline.
 // Dati di mercato, proxy, Firebase e Firestore NON vengono mai messi in cache.
-const VERSION = 'v2';
+const VERSION = 'v3';
 const SHELL_CACHE = 'etf-shell-' + VERSION;
 const CDN_CACHE = 'etf-cdn-' + VERSION;
 const SHELL = [
