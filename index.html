@@ -1,0 +1,1710 @@
+<!DOCTYPE html>
+<html lang="it" class="antialiased">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ETF Portfolio Tracker Pro</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        slate: {
+                            850: '#172033',
+                            950: '#0b1120',
+                        },
+                        sheet: {
+                            tickerBg: '#d9ead3',
+                            tickerDark: '#1b3320',
+                            totalBg: '#fff2cc',
+                            totalDark: '#3b3319'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Stile griglia Google Sheets nitido */
+        .sheet-table {
+            border-collapse: collapse;
+        }
+        .sheet-table th,
+        .sheet-table td {
+            border: 1px solid #1e293b;
+        }
+        .dark .sheet-table th,
+        .dark .sheet-table td {
+            border-color: #334155;
+        }
+        .sheet-table thead th {
+            border-top: 2px solid #0f172a;
+            border-bottom: 2px solid #0f172a;
+        }
+        .dark .sheet-table thead th {
+            border-top-color: #475569;
+            border-bottom-color: #475569;
+        }
+        .sheet-table tfoot td.total-box {
+            border-top: 2px solid #0f172a;
+            border-bottom: 2px solid #0f172a;
+        }
+        .dark .sheet-table tfoot td.total-box {
+            border-top-color: #64748b;
+            border-bottom-color: #64748b;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-200 min-h-screen flex flex-col">
+    <!-- Top Header / Navbar -->
+    <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-30">
+        <div class="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-sm">
+                    <i data-lucide="table-2" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white leading-tight">ETF Portfolio Tracker</h1>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 hidden sm:block">Monitoraggio portafoglio e fiscalità ETF (26% Azionario / 18% Obbligazionario)</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 sm:gap-2.5">
+                <button id="btn-fetch-market" onclick="fetchMilanMarketData()" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium text-emerald-800 dark:text-emerald-200 bg-emerald-100 dark:bg-emerald-950/80 hover:bg-emerald-200 dark:hover:bg-emerald-900 border border-emerald-300 dark:border-emerald-800 rounded-xl transition-colors" title="Recupera da internet quotazioni Borsa di Milano (Prezzo, HIGH52, LOW52, Grafico 360gg)">
+                    <i id="refresh-icon" data-lucide="globe" class="w-4 h-4"></i>
+                    <span id="refresh-label" class="hidden md:inline">Aggiorna Borsa di Milano</span>
+                </button>
+
+                <button onclick="exportData()" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors" title="Esporta tutti i portafogli in un file JSON (backup)">
+                    <i data-lucide="download" class="w-4 h-4"></i>
+                    <span class="hidden md:inline">Esporta dati</span>
+                </button>
+                <button onclick="document.getElementById('importFile').click()" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors" title="Importa portafogli da un file JSON">
+                    <i data-lucide="upload" class="w-4 h-4"></i>
+                    <span class="hidden md:inline">Importa dati</span>
+                </button>
+                <input type="file" id="importFile" accept=".json,application/json" class="hidden" onchange="importData(event)">
+
+                <button onclick="openModal()" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm transition-colors">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    <span>Aggiungi ETF</span>
+                </button>
+
+                <div id="syncBox" class="hidden items-center gap-2">
+                    <span id="syncStatus" class="hidden lg:inline text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap"></span>
+                    <button id="syncBtn" onclick="syncButtonClick()" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium text-sky-800 dark:text-sky-200 bg-sky-100 dark:bg-sky-950/80 hover:bg-sky-200 dark:hover:bg-sky-900 border border-sky-300 dark:border-sky-800 rounded-xl transition-colors" title="Sincronizzazione cloud">
+                        <i data-lucide="cloud" class="w-4 h-4"></i>
+                        <span id="syncBtnLabel" class="hidden md:inline">Accedi</span>
+                    </button>
+                </div>
+
+                <button onclick="toggleTheme()" class="p-2 text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors" title="Cambia tema chiaro/scuro">
+                    <i id="theme-icon" data-lucide="moon" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-[1920px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        
+        <!-- Selettore portafogli -->
+        <section class="bg-white dark:bg-slate-900 px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-wrap items-center gap-2">
+            <i data-lucide="briefcase" class="w-4 h-4 text-slate-500"></i>
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300">Portafoglio</span>
+            <select id="pfSelect" onchange="switchPortfolio(this.value)" class="px-3 py-1.5 text-sm font-semibold bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 max-w-[60vw]"></select>
+            <button type="button" onclick="newPortfolio()" class="px-2.5 py-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg">+ Nuovo</button>
+            <button type="button" onclick="renameActivePortfolio()" class="px-2.5 py-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg">Rinomina</button>
+            <button type="button" id="pfDeleteBtn" onclick="deleteActivePortfolio()" class="px-2.5 py-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg text-rose-700 dark:text-rose-300 disabled:opacity-40 disabled:cursor-not-allowed">Elimina</button>
+            <span class="text-[11px] text-slate-500 dark:text-slate-400 ml-auto hidden sm:inline">Ogni portafoglio ha il proprio foglio ETF e le proprie cedole.</span>
+        </section>
+
+        <!-- Summary Cards (KPI) -->
+        <section class="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4" id="kpi-cards">
+            <!-- Popolato dinamicamente -->
+        </section>
+
+        <!-- Toolbar Filtri e Ricerca -->
+        <section class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+            <div class="relative flex-1 max-w-md">
+                <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+                <input type="text" id="searchInput" oninput="renderTable()" placeholder="Cerca per Ticker o ISIN (es. SWDA, IE00B4L5Y983)..." class="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all">
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+                <select id="filterAsset" onchange="renderTable()" class="px-3 py-2 text-xs sm:text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="ALL">Tutte le Asset Class</option>
+                    <option value="AZIONARIO">Azionario (Tasse 26%)</option>
+                    <option value="OBBLIGAZIONARIO">Obbligazionario (Tasse 18%)</option>
+                </select>
+
+                <select id="filterCedola" onchange="renderTable()" class="px-3 py-2 text-xs sm:text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="ALL">Tutte le Cedole</option>
+                    <option value="Accumulo">Accumulo</option>
+                    <option value="Mensile">Mensile</option>
+                    <option value="Trimestrale">Trimestrale</option>
+                    <option value="Semestrale">Semestrale</option>
+                    <option value="Annuale">Annuale</option>
+                </select>
+
+                <div class="flex items-center gap-1">
+                    <input id="proxyInput" type="text" placeholder="URL del tuo proxy (Cloudflare Worker)" class="px-3 py-2 text-xs w-56 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <button onclick="saveProxy()" class="px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl">Salva proxy</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tabella Portafoglio in Linea (Stile Google Sheets con doppia colonna Ticker e Riga Totali) -->
+        <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-800 shadow-sm overflow-hidden">
+            <div class="px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300">Foglio Portafoglio ETF</span>
+                    <span id="row-count" class="px-2 py-0.5 text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 rounded-full">0</span>
+                </div>
+                <span class="text-xs text-slate-500 dark:text-slate-400">Clicca su un grafico per ingrandirlo • Passa il mouse sulle celle per i dettagli</span>
+            </div>
+
+            <div class="overflow-x-auto w-full p-2 sm:p-3 bg-white dark:bg-slate-900">
+                <table class="sheet-table w-full text-center whitespace-nowrap text-xs sm:text-[13px]">
+                    <thead>
+                        <tr class="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold text-xs">
+                            <!-- 1. Ticker (Sticky SX - Verde Google Sheet) -->
+                            <th class="py-2.5 px-3 sticky left-0 z-20 bg-white dark:bg-slate-800 min-w-[82px]">Ticker</th>
+                            <!-- 2. ISIN -->
+                            <th class="py-2.5 px-3">ISIN</th>
+                            <!-- 3. Quote acquistate -->
+                            <th class="py-2.5 px-2.5">Quote<br>acquistate</th>
+                            <!-- 4. Valore d'acquisto -->
+                            <th class="py-2.5 px-3">Valore<br>d'acquisto</th>
+                            <!-- 5. Valore Attuale -->
+                            <th class="py-2.5 px-3">Valore<br>Attuale</th>
+                            <!-- 6. HIGH52 -->
+                            <th class="py-2.5 px-2.5">HIGH52</th>
+                            <!-- 7. LOW52 -->
+                            <th class="py-2.5 px-2.5">LOW52</th>
+                            <!-- 8. CHANGE (€) -->
+                            <th class="py-2.5 px-3">CHANGE<br>(€)</th>
+                            <!-- 9. Min/Max (Linea tra Low52 e High52) -->
+                            <th class="py-2.5 px-3 min-w-[115px]">Min/Max<br><span class="text-[10px] font-normal text-slate-500 dark:text-slate-400">Low52 — High52</span></th>
+                            <!-- 10. Valore di carico -->
+                            <th class="py-2.5 px-3">Valore di carico</th>
+                            <!-- 11. Valore attuale (Totale) -->
+                            <th class="py-2.5 px-3">Valore attuale</th>
+                            <!-- 12. Var% -->
+                            <th class="py-2.5 px-2.5" title="Formula: IF(Valore attuale>0; ((Valore attuale - Valore di carico)/Valore di carico)*100; '')">Var%</th>
+                            <!-- 13. Differenza lorda -->
+                            <th class="py-2.5 px-3">Differenza<br>lorda</th>
+                            <!-- 14. Differenza netta -->
+                            <th class="py-2.5 px-3">Differenza<br>netta</th>
+                            <!-- 15. Tasse -->
+                            <th class="py-2.5 px-2.5">Tasse</th>
+                            <!-- 16. Cadenza Cedola -->
+                            <th class="py-2.5 px-3">Cadenza<br>Cedola</th>
+                            <!-- 17. Trattenuta ETF (TER) -->
+                            <th class="py-2.5 px-2.5">Trattenuta<br>ETF (TER)</th>
+                            <!-- 18. Grafico Prezzo 360gg -->
+                            <th class="py-2.5 px-3 min-w-[175px]">Grafico Prezzo<br><span class="text-[10px] font-normal text-slate-500 dark:text-slate-400">(12 mesi, chiusure reali)</span></th>
+                            <!-- 19. Ticker (Replica a destra come nel foglio) -->
+                            <th class="py-2.5 px-3 min-w-[82px]">Ticker</th>
+                            <!-- 20. Azioni -->
+                            <th class="py-2.5 px-2">Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody id="etf-table-body" class="bg-white dark:bg-slate-900">
+                        <!-- Righe generate via JS -->
+                    </tbody>
+                    <tfoot id="etf-table-foot">
+                        <!-- Riga Totale generata via JS -->
+                    </tfoot>
+                </table>
+            </div>
+        </section>
+
+        <!-- Sezione Cedole -->
+        <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-800 shadow-sm overflow-hidden">
+            <div class="px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2 bg-slate-50 dark:bg-slate-900">
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300">Cedole (ultima distribuzione)</span>
+                <span id="cedole-pf" class="text-xs font-medium text-slate-500 dark:text-slate-400"></span>
+                <span id="cedole-count" class="px-2 py-0.5 text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 rounded-full">0</span>
+                <div class="ml-auto flex flex-wrap items-center gap-1.5">
+                    <select id="cedoleBasis" onchange="renderCedole()" title="Data usata dal filtro" class="px-2 py-1 text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="pay">Per pagamento</option>
+                        <option value="ex">Per stacco</option>
+                    </select>
+                    <select id="cedoleMonth" onchange="renderCedole()" class="px-2 py-1 text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="ALL">Tutti i mesi</option>
+                        <option value="01">Gennaio</option><option value="02">Febbraio</option><option value="03">Marzo</option>
+                        <option value="04">Aprile</option><option value="05">Maggio</option><option value="06">Giugno</option>
+                        <option value="07">Luglio</option><option value="08">Agosto</option><option value="09">Settembre</option>
+                        <option value="10">Ottobre</option><option value="11">Novembre</option><option value="12">Dicembre</option>
+                    </select>
+                    <select id="cedoleYear" onchange="renderCedole()" class="px-2 py-1 text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="ALL">Tutti gli anni</option>
+                    </select>
+                    <label class="flex items-center gap-1 px-2 py-1 text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg cursor-pointer select-none">
+                        <input type="checkbox" id="cedoleHideNoShares" checked onchange="renderCedole()" class="accent-indigo-600">
+                        Escludi ETF senza quote
+                    </label>
+                    <button type="button" onclick="setCedoleCurrentMonth()" class="px-2 py-1 text-xs font-semibold bg-indigo-100 hover:bg-indigo-200 text-indigo-800 dark:bg-indigo-950 dark:hover:bg-indigo-900 dark:text-indigo-300 rounded-lg">Mese corrente</button>
+                    <button type="button" onclick="resetCedoleFilter()" class="px-2 py-1 text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg">Reset</button>
+                </div>
+            </div>
+            <div class="overflow-x-auto w-full p-2 sm:p-3">
+                <table class="sheet-table w-full text-center whitespace-nowrap text-xs sm:text-[13px]">
+                    <thead><tr class="bg-white dark:bg-slate-800 font-bold text-xs">
+                        <th class="py-2.5 px-3">Ticker</th><th class="py-2.5 px-3">Cadenza</th><th class="py-2.5 px-3">Dividendo<br>x1 quota</th><th class="py-2.5 px-3">Valuta<br>dividendo</th><th class="py-2.5 px-3">Cambio<br>→ EUR</th>
+                        <th class="py-2.5 px-3">Cedola<br>lorda</th><th class="py-2.5 px-3">Cedola<br>netta</th><th class="py-2.5 px-3">Data stacco</th><th class="py-2.5 px-3">Data pagamento</th>
+                    </tr></thead>
+                    <tbody id="cedole-body"></tbody>
+                    <tfoot id="cedole-foot"></tfoot>
+                </table>
+            </div>
+            <p class="px-4 pb-3 text-xs text-slate-500 dark:text-slate-400">Lorda = dividendo x1 quota × quote acquistate × cambio. Netta = lorda × (1 − tasse), con l'aliquota della tabella sopra. Dividendo, valuta, data di stacco e di pagamento: stockanalysis.com (Borsa Italiana, dati S&amp;P Global), ultima cedola annunciata: le etichette indicano se stacco e pagamento sono passati o futuri. Cambio da Yahoo (<code>USDEUR=X</code>, come GOOGLEFINANCE("USDEUR")). Le righe con * non hanno trovato dati lì: usano Yahoo e la valuta del fondo, modificabile, con data di pagamento da inserire. Il filtro mese/anno usa la data di pagamento (o di stacco, a scelta): con un filtro attivo le righe senza quella data vengono nascoste.</p>
+        </section>
+
+        <!-- Legenda / Note Metodologiche -->
+        <footer class="text-xs text-slate-500 dark:text-slate-400 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 px-1">
+            <p>* Dati <strong>Valore Attuale, HIGH52, LOW52 e Grafico 360gg</strong> recuperati per <strong>Borsa Italiana (Milano)</strong>. <strong>Differenza netta</strong>: 26% Azionario, 18% Obbligazionario su plusvalenze.</p>
+            <p>* <strong>Var%</strong> calcolata con formula <code>IF(Valore attuale>0; ((Valore attuale - Valore di carico)/Valore di carico)*100; '')</code>.</p>
+        </footer>
+    </main>
+
+    <!-- Modale Aggiungi / Modifica ETF -->
+    <div id="etf-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4 overflow-y-auto">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden my-auto">
+            <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                <h2 id="modal-title" class="text-base font-bold text-slate-900 dark:text-white">Aggiungi Nuovo ETF</h2>
+                <button onclick="closeModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="etf-form" onsubmit="saveETF(event)" class="p-6 space-y-4">
+                <input type="hidden" id="edit-id">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div><label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Ticker (Milano) *</label><input type="text" id="f-ticker" required placeholder="es. VHYL" class="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none uppercase"></div>
+                    <div><label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Codice ISIN *</label><input type="text" id="f-isin" required placeholder="es. IE00B8GKDB10" class="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none uppercase"></div>
+                    <div><label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Quote acquistate (0 = watchlist) *</label><input type="number" step="0.0001" min="0" id="f-shares" required placeholder="100" class="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"></div>
+                    <div><label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Valore d'acquisto (€ per quota)</label><input type="number" step="0.001" min="0" id="f-buyPrice" placeholder="66.82" class="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"></div>
+                </div>
+                <p class="text-xs text-slate-500 dark:text-slate-400">Prezzo, High52, Low52, grafico (Yahoo Finance) e TER, cedola, aliquota (justETF) vengono recuperati automaticamente al salvataggio.</p>
+                <div class="pt-4 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl">Annulla</button>
+                    <button type="submit" id="btn-save" class="px-5 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm">Salva ETF</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modale Dettaglio Grafico Espanso -->
+    <div id="chart-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl w-full max-w-xl p-6 space-y-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 id="chart-modal-title" class="text-lg font-bold text-slate-900 dark:text-white">Andamento Prezzo (360 giorni)</h3>
+                    <p id="chart-modal-subtitle" class="text-xs text-slate-500 dark:text-slate-400">Quotazioni Borsa Italiana (Milano) - Ultimi 360 giorni</p>
+                </div>
+                <button onclick="closeChartModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div id="chart-modal-body" class="w-full h-56 bg-slate-50 dark:bg-slate-950 rounded-xl p-4 border border-slate-200 dark:border-slate-800 flex items-center justify-center">
+                <!-- SVG grande generato via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification (Sostituisce alert/confirm) -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+        <div class="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-3 rounded-xl shadow-lg flex items-center gap-2.5 text-sm font-medium">
+            <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400 dark:text-emerald-600"></i>
+            <span id="toast-msg">Operazione completata</span>
+        </div>
+    </div>
+
+    <script>
+        // --- DATI INIZIALI BASATI ESATTAMENTE SUL TUO FOGLIO GOOGLE SHEET ---
+        // Portafoglio di partenza vuoto: i dati dell'utente vivono nel browser e, con il login, nel cloud.
+        const DEFAULT_PORTFOLIO = [];
+
+        let portfolio = [];
+
+        // --- INIZIALIZZAZIONE ---
+        window.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+            loadPortfolio();
+            renderAll();
+            lucide.createIcons();
+            maybeAutoRefresh();
+            initSync();
+        });
+
+        function maybeAutoRefresh() {
+            try { document.getElementById('proxyInput').value = localStorage.getItem('etf_proxy_url') ?? DEFAULT_PROXY; } catch (e) {}
+            if (!getProxyPrefix()) return;
+            const stale = portfolio.some(i => !i.histDates || !i.updatedAt || Date.now() - new Date(i.updatedAt) > 12 * 3600 * 1000);
+            if (stale) fetchMilanMarketData();
+        }
+
+        // --- PORTAFOGLI MULTIPLI ---
+        // store = { activeId, portfolios: [{ id, name, items: [ETF...] }] }
+        // `portfolio` punta sempre agli ETF del portafoglio attivo: tabella, KPI, cedole e aggiornamenti lavorano su quello.
+        const STORE_KEY = 'etf_portfolios_v3', LEGACY_KEY = 'etf_portfolio_sheet_v2', MAIN_ID = 'main';
+        let store = { activeId: MAIN_ID, portfolios: [] };
+        function uid() { return 'pf_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+        function activePf() { return store.portfolios.find(p => p.id === store.activeId) || store.portfolios[0]; }
+
+        function loadPortfolio() {
+            loadFx();
+            store = null;
+            try {
+                const raw = localStorage.getItem(STORE_KEY);
+                if (raw) {
+                    const st = JSON.parse(raw);
+                    if (st && Array.isArray(st.portfolios) && st.portfolios.length) store = st;
+                }
+                if (!store) {
+                    // prima apertura dopo l'aggiornamento: il vecchio portafoglio diventa il principale (la chiave vecchia resta intatta)
+                    const legacy = localStorage.getItem(LEGACY_KEY);
+                    const items = legacy ? JSON.parse(legacy) : JSON.parse(JSON.stringify(DEFAULT_PORTFOLIO));
+                    store = { activeId: MAIN_ID, portfolios: [{ id: MAIN_ID, name: 'Portafoglio principale', items }] };
+                }
+            } catch (e) {
+                console.error("Errore lettura storage:", e);
+                store = { activeId: MAIN_ID, portfolios: [{ id: MAIN_ID, name: 'Portafoglio principale', items: JSON.parse(JSON.stringify(DEFAULT_PORTFOLIO)) }] };
+            }
+            store.portfolios.forEach(p => {
+                if (!Array.isArray(p.items)) p.items = [];
+                p.items.forEach(i => { if (!i.histDates) i.history = []; }); // scarta storici non reali
+            });
+            portfolio = activePf().items;
+            saveToStorage(true);
+        }
+
+        // silent = true: salvataggio che non è una modifica dell'utente (non aggiorna la data di modifica, non invia al cloud)
+        function saveToStorage(silent = false) {
+            try {
+                const p = activePf();
+                if (p) p.items = portfolio;
+                if (!silent) store.updatedAt = Date.now();
+                localStorage.setItem(STORE_KEY, JSON.stringify(store));
+            } catch (e) {
+                console.error("Errore salvataggio storage:", e);
+            }
+            if (!silent) scheduleSyncPush();
+        }
+
+        function renderPortfolioBar() {
+            const sel = document.getElementById('pfSelect');
+            if (!sel) return;
+            sel.innerHTML = '';
+            store.portfolios.forEach(p => sel.add(new Option(`${p.name} (${p.items.length})`, p.id)));
+            sel.value = store.activeId;
+            const del = document.getElementById('pfDeleteBtn');
+            if (del) del.disabled = store.activeId === MAIN_ID;
+            const tag = document.getElementById('cedole-pf');
+            if (tag) tag.textContent = '· ' + activePf().name;
+        }
+
+        function cleanStr(v, max = 80) { return String(v ?? '').replace(/[<>"'`&]/g, '').trim().slice(0, max); }
+        function nameTaken(name, exceptId) { return store.portfolios.some(p => p.id !== exceptId && p.name.toLowerCase() === name.toLowerCase()); }
+
+        function switchPortfolio(id) {
+            saveToStorage(true);
+            if (!store.portfolios.some(p => p.id === id)) return;
+            store.activeId = id;
+            portfolio = activePf().items;
+            ['searchInput'].forEach(k => { const el = document.getElementById(k); if (el) el.value = ''; });
+            ['filterAsset', 'filterCedola'].forEach(k => { const el = document.getElementById(k); if (el) el.value = 'ALL'; });
+            saveToStorage(true);
+            renderAll();
+            maybeAutoRefresh();
+        }
+
+        function newPortfolio() {
+            const name = cleanStr(prompt('Nome del nuovo portafoglio:') || '');
+            if (!name) return;
+            if (nameTaken(name)) { showToast('Esiste già un portafoglio con questo nome'); return; }
+            const pf = { id: uid(), name, items: [] };
+            store.portfolios.push(pf);
+            saveToStorage();
+            switchPortfolio(pf.id);
+            showToast(`Portafoglio "${name}" creato`);
+        }
+
+        function renameActivePortfolio() {
+            const pf = activePf();
+            const name = cleanStr(prompt('Nuovo nome del portafoglio:', pf.name) || '');
+            if (!name || name === pf.name) return;
+            if (nameTaken(name, pf.id)) { showToast('Esiste già un portafoglio con questo nome'); return; }
+            pf.name = name;
+            saveToStorage();
+            renderAll();
+        }
+
+        function deleteActivePortfolio() {
+            const pf = activePf();
+            if (pf.id === MAIN_ID) { showToast('Il portafoglio principale non può essere eliminato'); return; }
+            if (!confirm(`Eliminare "${pf.name}" e i suoi ${pf.items.length} ETF?\nL'operazione non si può annullare (esporta i dati prima, se vuoi un backup).`)) return;
+            store.portfolios = store.portfolios.filter(p => p.id !== pf.id);
+            store.activeId = MAIN_ID;
+            portfolio = activePf().items;
+            saveToStorage();
+            renderAll();
+            showToast(`Portafoglio "${pf.name}" eliminato`);
+        }
+
+        // --- SINCRONIZZAZIONE CLOUD (Firebase: login Google + Firestore) ---
+        // Compila FIREBASE_CONFIG con i dati della tua app web Firebase. Se resta vuoto, l'app funziona solo in locale.
+        // (La config Firebase non è un segreto: la sicurezza è nelle regole di Firestore, che isolano i dati di ogni utente.)
+        const FIREBASE_CONFIG = {
+            apiKey: 'AIzaSyDuBFv3XSzN9te4SEzZeB7PAk9xXAyzmUQ',
+            authDomain: 'myetf-b5a7f.firebaseapp.com',
+            projectId: 'myetf-b5a7f',
+            appId: '1:895512281003:web:418435af5667274e0adcee'
+        };
+        const SYNC_UID_KEY = 'etf_sync_uid';
+        const FB_SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
+        let fbAuth = null, fbDb = null, syncUser = null, syncUnsub = null, syncTimer = null, syncApplying = false;
+
+        function syncEnabled() { return !!(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId); }
+        function loadScript(src) {
+            return new Promise((res, rej) => {
+                const el = document.createElement('script');
+                el.src = src; el.onload = res; el.onerror = () => rej(new Error('Impossibile caricare Firebase (connessione assente?)'));
+                document.head.appendChild(el);
+            });
+        }
+
+        function setSyncUi(state, msg) {
+            const box = document.getElementById('syncBox');
+            if (!box) return;
+            box.classList.remove('hidden'); box.classList.add('flex');
+            const st = document.getElementById('syncStatus'), lab = document.getElementById('syncBtnLabel'), btn = document.getElementById('syncBtn');
+            const time = new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+            const txt = {
+                loading: 'Cloud: connessione…', out: 'Cloud: non connesso', syncing: 'Cloud: sincronizzo…',
+                pending: 'Cloud: modifiche da inviare…', ok: `Cloud: sincronizzato ${time}`, error: 'Cloud: errore (' + (msg || '') + ')'
+            }[state] || '';
+            st.textContent = txt; st.title = msg || (syncUser ? syncUser.email : '');
+            lab.textContent = syncUser ? 'Esci' : 'Accedi';
+            btn.title = syncUser ? 'Connesso come ' + (syncUser.email || '') + ' — clic per uscire' : 'Accedi con Google per sincronizzare i portafogli';
+            if (state === 'error') console.error('Sync:', msg);
+        }
+
+        async function initSync() {
+            if (!syncEnabled()) return;
+            setSyncUi('loading');
+            try {
+                await loadScript(FB_SDK + 'firebase-app-compat.js');
+                await Promise.all([loadScript(FB_SDK + 'firebase-auth-compat.js'), loadScript(FB_SDK + 'firebase-firestore-compat.js')]);
+                firebase.initializeApp(FIREBASE_CONFIG);
+                fbAuth = firebase.auth(); fbDb = firebase.firestore();
+                fbAuth.getRedirectResult().catch(e => showToast('Accesso non riuscito: ' + e.message));
+                fbAuth.onAuthStateChanged(onAuthChange);
+            } catch (e) { setSyncUi('error', e.message); }
+        }
+
+        async function syncButtonClick() {
+            if (!fbAuth) { showToast('Sincronizzazione non disponibile (Firebase non caricato)'); return; }
+            if (!syncUser) {
+                if (location.protocol === 'file:') { showToast("Il login funziona solo dall'indirizzo web dell'app, non aprendo il file dal computer"); return; }
+                const provider = new firebase.auth.GoogleAuthProvider();
+                try { await fbAuth.signInWithPopup(provider); }
+                catch (e) {
+                    if (e.code === 'auth/popup-blocked' || e.code === 'auth/operation-not-supported-in-this-environment') {
+                        try { await fbAuth.signInWithRedirect(provider); } catch (e2) { showToast('Accesso non riuscito: ' + e2.message); }
+                    } else if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
+                        showToast('Accesso non riuscito: ' + e.message);
+                    }
+                }
+                return;
+            }
+            if (!confirm('Uscire dall\'account?')) return;
+            clearTimeout(syncTimer);
+            await pushToCloud();
+            const wipe = confirm('Rimuovere anche i dati salvati su QUESTO dispositivo?\nRestano al sicuro sul cloud e li ritrovi al prossimo accesso.\n\nOK = rimuovi (consigliato su dispositivi condivisi)\nAnnulla = tieni i dati qui');
+            try { await fbAuth.signOut(); } catch (e) { showToast('Uscita non riuscita: ' + e.message); return; }
+            if (wipe) {
+                try { [STORE_KEY, LEGACY_KEY, SYNC_UID_KEY, 'etf_fx_v1'].forEach(k => localStorage.removeItem(k)); } catch (e) {}
+                location.reload();
+            }
+        }
+
+        // Dati cloud -> portafogli puliti (stesso filtro dell'import, ma mantenendo gli id)
+        function parseCloud(data) {
+            try {
+                const o = JSON.parse(data.payload);
+                if (!o || !Array.isArray(o.portfolios)) return null;
+                const pfs = o.portfolios.slice(0, 50).map((p, i) => ({ id: cleanStr(p && p.id, 40) || uid(), ...sanitizePortfolio(p, i) }));
+                if (pfs.length && !pfs.some(p => p.id === MAIN_ID)) pfs[0].id = MAIN_ID;
+                return { portfolios: pfs, updatedAt: Number(data.updatedAt) || 0 };
+            } catch (e) { return null; }
+        }
+        function cloudHasData(c) { return !!c && c.portfolios.some(p => p.items.length > 0); }
+        function localHasData() { return store.portfolios.some(p => p.items.length > 0); }
+
+        function applyCloud(cloud) {
+            syncApplying = true;
+            const keep = store.activeId;
+            const pfs = cloud && cloud.portfolios.length ? cloud.portfolios : [{ id: MAIN_ID, name: 'Portafoglio principale', items: [] }];
+            store = { activeId: pfs.some(p => p.id === keep) ? keep : MAIN_ID, portfolios: pfs, updatedAt: cloud ? cloud.updatedAt : 0 };
+            store.portfolios.forEach(p => p.items.forEach(i => { if (!i.histDates) i.history = []; }));
+            portfolio = activePf().items;
+            saveToStorage(true);
+            syncApplying = false;
+            renderAll();
+        }
+
+        function scheduleSyncPush() {
+            if (!syncUser || syncApplying) return;
+            clearTimeout(syncTimer);
+            setSyncUi('pending');
+            syncTimer = setTimeout(pushToCloud, 1500);
+        }
+
+        async function pushToCloud() {
+            if (!syncUser || !fbDb || syncApplying) return;
+            const payload = JSON.stringify({ portfolios: store.portfolios });
+            if (payload.length > 900000) { setSyncUi('error', 'dati troppo grandi per il cloud'); return; }
+            try {
+                setSyncUi('syncing');
+                if (!store.updatedAt) store.updatedAt = Date.now();
+                await fbDb.collection('users').doc(syncUser.uid).set({ payload, updatedAt: store.updatedAt, schema: 3 });
+                localStorage.setItem(SYNC_UID_KEY, syncUser.uid);
+                localStorage.setItem(STORE_KEY, JSON.stringify(store));
+                setSyncUi('ok');
+            } catch (e) { setSyncUi('error', e.message); }
+        }
+
+        async function onAuthChange(user) {
+            syncUser = user;
+            if (syncUnsub) { syncUnsub(); syncUnsub = null; }
+            if (!user) { setSyncUi('out'); return; }
+            setSyncUi('syncing');
+            try {
+                const ref = fbDb.collection('users').doc(user.uid);
+                const snap = await ref.get();
+                const cloud = snap.exists ? parseCloud(snap.data()) : null;
+                const prevUid = localStorage.getItem(SYNC_UID_KEY);
+
+                if (prevUid && prevUid !== user.uid && localHasData()) {
+                    if (!confirm('Questo dispositivo contiene dati di un altro account.\nSostituirli con quelli del tuo account?\n\nAnnulla = esci senza toccare nulla')) { await fbAuth.signOut(); return; }
+                    applyCloud(cloud);
+                } else if (!cloud) {
+                    await pushToCloud();                       // primo accesso: i dati di questo dispositivo vanno sul cloud
+                } else if (!localHasData()) {
+                    applyCloud(cloud);                         // dispositivo vuoto: scarico dal cloud
+                } else if (!prevUid && cloudHasData(cloud)) {  // dati locali mai sincronizzati + cloud già pieno
+                    if (confirm('Sul cloud ci sono già dei dati e anche su questo dispositivo.\n\nOK = usa i dati del CLOUD (sostituisce quelli di questo dispositivo)\nAnnulla = scegli di sovrascrivere il cloud')) applyCloud(cloud);
+                    else if (confirm('Sovrascrivere i dati del cloud con quelli di questo dispositivo?\nI dati attuali del cloud andranno persi.')) await pushToCloud();
+                    else { await fbAuth.signOut(); return; }
+                } else if (!prevUid) {
+                    await pushToCloud();                       // cloud vuoto: carico i dati locali
+                } else if (cloud.updatedAt > (store.updatedAt || 0)) {
+                    applyCloud(cloud);                         // stesso account: vince la modifica più recente
+                } else if (cloud.updatedAt < (store.updatedAt || 0)) {
+                    await pushToCloud();
+                }
+                localStorage.setItem(SYNC_UID_KEY, user.uid);
+                syncUnsub = ref.onSnapshot(sn => {
+                    if (!sn.exists || sn.metadata.hasPendingWrites) return;
+                    const c = parseCloud(sn.data());
+                    if (c && c.updatedAt > (store.updatedAt || 0)) {
+                        applyCloud(c);
+                        setSyncUi('ok');
+                        showToast('Dati aggiornati da un altro dispositivo');
+                    }
+                }, e => setSyncUi('error', e.message));
+                setSyncUi('ok');
+            } catch (e) { setSyncUi('error', e.message); }
+        }
+
+        // Prima di chiudere/nascondere la pagina, invia subito le modifiche in attesa
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden' && syncTimer) { clearTimeout(syncTimer); syncTimer = null; pushToCloud(); }
+        });
+
+        // --- ESPORTA / IMPORTA DATI (JSON) ---
+        function exportData() {
+            saveToStorage();
+            const payload = { app: 'etf-portfolio-tracker', version: 3, exportedAt: new Date().toISOString(), activeId: store.activeId, portfolios: store.portfolios };
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `portafogli_etf_${new Date().toISOString().slice(0, 10)}.json`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            const n = store.portfolios.reduce((a, p) => a + p.items.length, 0);
+            showToast(`Esportati ${store.portfolios.length} portafogli (${n} ETF)`);
+        }
+
+        // Pulizia dei dati importati: niente HTML nelle stringhe, numeri validi, campi noti
+        function cleanDeep(v, depth = 0) {
+            if (depth > 4) return null;
+            if (typeof v === 'string') return cleanStr(v, 200);
+            if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
+            if (typeof v === 'boolean' || v === null) return v;
+            if (Array.isArray(v)) return v.slice(0, 2000).map(x => cleanDeep(x, depth + 1));
+            if (typeof v === 'object') {
+                const o = {};
+                Object.keys(v).forEach(k => { if (!['__proto__', 'constructor', 'prototype'].includes(k)) o[cleanStr(k, 40)] = cleanDeep(v[k], depth + 1); });
+                return o;
+            }
+            return null;
+        }
+        function sanitizeItem(raw) {
+            if (!raw || typeof raw !== 'object' || Array.isArray(raw) || !raw.ticker) return null;
+            const it = cleanDeep(raw);
+            it.ticker = cleanStr(it.ticker, 20).toUpperCase();
+            if (!it.ticker) return null;
+            it.isin = cleanStr(it.isin, 20).toUpperCase();
+            ['shares', 'buyPrice', 'currPrice', 'high52', 'low52', 'change', 'ter'].forEach(k => { const n = Number(it[k]); it[k] = Number.isFinite(n) ? n : 0; });
+            if (!['AZIONARIO', 'OBBLIGAZIONARIO'].includes(it.assetType)) it.assetType = 'AZIONARIO';
+            if (!['Accumulo', 'Mensile', 'Trimestrale', 'Semestrale', 'Annuale'].includes(it.dividend)) it.dividend = 'Accumulo';
+            if (!Array.isArray(it.history)) it.history = [];
+            return it;
+        }
+        function sanitizePortfolio(p, idx) {
+            const items = [], seen = new Set();
+            (Array.isArray(p && p.items) ? p.items : []).forEach(r => {
+                const it = sanitizeItem(r);
+                if (!it) return;
+                if (!it.id || seen.has(String(it.id))) it.id = Date.now().toString() + Math.random().toString(36).slice(2, 7);
+                it.id = String(it.id); seen.add(it.id);
+                items.push(it);
+            });
+            return { name: cleanStr(p && p.name) || `Portafoglio ${idx + 1}`, items };
+        }
+
+        function importData(ev) {
+            const file = ev.target.files && ev.target.files[0];
+            ev.target.value = '';
+            if (!file) return;
+            if (file.size > 5 * 1024 * 1024) { showToast('File troppo grande'); return; }
+            const reader = new FileReader();
+            reader.onload = () => {
+                try {
+                    const data = JSON.parse(reader.result);
+                    const list = Array.isArray(data) ? [{ name: 'Portafoglio importato', items: data }]
+                        : (data && Array.isArray(data.portfolios) ? data.portfolios : null);
+                    if (!list) throw new Error('formato non riconosciuto');
+                    const pfs = list.slice(0, 50).map(sanitizePortfolio);
+                    const nEtf = pfs.reduce((a, p) => a + p.items.length, 0);
+                    if (!pfs.length || !nEtf) throw new Error('nessun ETF nel file');
+                    const summary = `Il file contiene ${pfs.length} portafogli (${nEtf} ETF).`;
+                    if (confirm(`${summary}\n\nOK = SOSTITUISCI tutti i dati attuali (esporta prima, se vuoi tenerli)\nAnnulla = scegli un'altra opzione`)) {
+                        store = { activeId: MAIN_ID, portfolios: pfs.map((p, i) => ({ id: i === 0 ? MAIN_ID : uid() + i, name: p.name, items: p.items })) };
+                    } else if (confirm(`${summary}\n\nAggiungerli ai portafogli esistenti?`)) {
+                        saveToStorage();
+                        pfs.forEach((p, i) => {
+                            let name = p.name;
+                            if (nameTaken(name)) name += ' (importato)';
+                            let k = 2; while (nameTaken(name)) name = `${p.name} (importato ${k++})`;
+                            store.portfolios.push({ id: uid() + i, name, items: p.items });
+                        });
+                    } else { showToast('Importazione annullata'); return; }
+                    store.activeId = MAIN_ID;
+                    portfolio = activePf().items;
+                    saveToStorage();
+                    renderAll();
+                    if (window.lucide) lucide.createIcons();
+                    showToast(`Importati ${pfs.length} portafogli (${nEtf} ETF)`);
+                } catch (e) {
+                    console.error(e);
+                    showToast('Importazione non riuscita: ' + (e.message || 'file non valido'));
+                }
+            };
+            reader.onerror = () => showToast('Impossibile leggere il file');
+            reader.readAsText(file);
+        }
+
+        // --- CALCOLI FINANZIARI E FISCALI (SECONDO FORMULE RICHIESTE) ---
+        function calculateMetrics(item) {
+            // Valore di carico: Quote acquistate x Valore d'acquisto
+            const carico = item.shares * item.buyPrice;
+            // Valore attuale: Quote acquistate x Valore attuale
+            const attualeTot = item.shares * item.currPrice;
+            
+            // Differenza Lorda: Valore attuale - Valore di carico
+            const diffLorda = attualeTot - carico;
+
+            // Var%: =IF(VALORE ATTUALE>0; ((VALORE ATTUALE-VALORE DI CARICO)/VALORE DI CARICO)*100; "")
+            let varPerc = null;
+            if (attualeTot > 0 && carico > 0) {
+                varPerc = ((attualeTot - carico) / carico) * 100;
+            }
+            
+            // Tasse: 26% per azionario, 18% per obbligazionario
+            const taxRate = item.assetType === 'OBBLIGAZIONARIO' ? 0.18 : 0.26;
+            const tasse = diffLorda > 0 ? diffLorda * taxRate : 0;
+
+            // Differenza netta: =IF(("VALORE ATTUALE"-"VALORE DI CARICO")>0; ("VALORE ATTUALE"-"VALORE DI CARICO")*(1-"TASSE"); ("VALORE ATTUALE"-"VALORE DI CARICO"))
+            const diffNetta = (attualeTot - carico) > 0
+                ? (attualeTot - carico) * (1 - taxRate)
+                : (attualeTot - carico);
+
+            // Costo TER annuo stimato sul valore attuale
+            const terCostEuro = attualeTot * (item.ter / 100);
+
+            // Posizione percentuale (0% - 100%) sulla linea tra Low52 e High52
+            const range52 = item.high52 - item.low52;
+            let pos52Percent = 50;
+            if (range52 > 0) {
+                pos52Percent = Math.max(0, Math.min(100, ((item.currPrice - item.low52) / range52) * 100));
+            }
+
+            return {
+                carico,
+                attualeTot,
+                diffLorda,
+                varPerc,
+                taxRate,
+                tasse,
+                diffNetta,
+                terCostEuro,
+                pos52Percent
+            };
+        }
+
+        function updateField(id, field, value) {
+            const item = portfolio.find(e => e.id === id);
+            if (!item) return;
+            const n = parseFloat(String(value).replace(',', '.'));
+            item[field] = (isFinite(n) && n >= 0) ? n : 0;
+            saveToStorage();
+            renderAll();
+        }
+
+        // --- DIVIDENDI da stockanalysis.com (Borsa Italiana: importo con valuta, data di stacco e di pagamento) ---
+        const MESI = { Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12 };
+        function parseEnDate(s) {
+            const m = (s || '').trim().match(/^([A-Za-z]{3})[a-z]*\.? (\d{1,2}), (\d{4})$/);
+            if (!m || !MESI[m[1]]) return null;
+            return `${m[3]}-${String(MESI[m[1]]).padStart(2, '0')}-${m[2].padStart(2, '0')}`;
+        }
+        // rows: [data stacco, importo, data record, data pagamento]; prende la più recente
+        function parseDivRows(rows, today) {
+            const list = rows.map(c => {
+                const a = (c[1] || '').trim().match(/^([€$£]|[A-Z]{3})\s*([\d.,]+)/);
+                const date = parseEnDate(c[0]);
+                if (!a || !date) return null;
+                return { date, amount: parseFloat(a[2].replace(/,/g, '')), cur: ({ '€': 'EUR', '$': 'USD', '£': 'GBP' })[a[1]] || a[1], pay: parseEnDate(c[3]) };
+            }).filter(Boolean);
+            if (!list.length) throw new Error('nessun dividendo trovato');
+            return list[0]; // ultima cedola annunciata (può avere date future)
+        }
+        async function fetchDividendSA(ticker) {
+            const html = await proxiedFetch(
+                [`https://stockanalysis.com/quote/bit/${encodeURIComponent(ticker.toUpperCase())}/dividend/`],
+                t => { if (!/Ex-Dividend Date/i.test(t)) throw new Error('pagina senza dividendi'); return t; });
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            const rows = [...doc.querySelectorAll('tr')].map(tr => [...tr.querySelectorAll('td')].map(td => td.textContent.trim()));
+            return parseDivRows(rows.filter(r => r.length >= 3), new Date().toISOString().slice(0, 10));
+        }
+        async function refreshDividends(items = portfolio) {
+            await Promise.allSettled(items.filter(i => i.dividend !== 'Accumulo').map(async item => {
+                try {
+                    const d = await fetchDividendSA(item.ticker);
+                    item.lastDiv = { amount: d.amount, date: d.date, pay: d.pay };
+                    item.divCur = d.cur; item.divCurLocked = false;
+                    item.payDate = d.pay || ''; item.divSrc = 'stockanalysis'; item.divErr = null;
+                } catch (e) { item.divSrc = 'yahoo'; item.divErr = e.message; }
+            }));
+        }
+
+        // --- CEDOLE ---
+        let fxRates = {};
+        function loadFx() { try { fxRates = JSON.parse(localStorage.getItem('etf_fx_v1') || '{}'); } catch (e) { fxRates = {}; } }
+
+        async function refreshFx() {
+            const curs = [...new Set(portfolio.filter(i => i.dividend !== 'Accumulo' && i.divCur && i.divCur !== 'EUR').map(i => i.divCur))];
+            await Promise.allSettled(curs.map(async c => {
+                const sym = encodeURIComponent(c + 'EUR=X');
+                const j = await proxiedFetch(
+                    [`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?range=5d&interval=1d`, `https://query2.finance.yahoo.com/v8/finance/chart/${sym}?range=5d&interval=1d`],
+                    t => { const x = JSON.parse(t); if (!x?.chart?.result?.[0]) throw new Error('cambio non valido'); return x; });
+                const rate = j.chart.result[0].meta.regularMarketPrice;
+                if (rate > 0) fxRates[c] = { rate, at: new Date().toISOString() };
+            }));
+            try { localStorage.setItem('etf_fx_v1', JSON.stringify(fxRates)); } catch (e) {}
+        }
+
+        function cedolaMetrics(item) {
+            const cur = item.divCur || 'EUR';
+            const fx = cur === 'EUR' ? 1 : (fxRates[cur] ? fxRates[cur].rate : null);
+            const taxRate = item.assetType === 'OBBLIGAZIONARIO' ? 0.18 : 0.26;
+            const perShare = item.lastDiv ? item.lastDiv.amount : null;
+            const lorda = (perShare !== null && fx !== null && item.shares > 0) ? perShare * item.shares * fx : null;
+            const netta = lorda !== null ? lorda * (1 - taxRate) : null;
+            return { cur, fx, taxRate, perShare, lorda, netta };
+        }
+
+        function dateBadge(iso) {
+            if (!iso) return '';
+            const today = new Date().toLocaleDateString('sv-SE');
+            const diff = Math.round((Date.parse(iso) - Date.parse(today)) / 864e5);
+            let cls, txt;
+            if (diff > 0) { cls = 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'; txt = diff === 1 ? 'futura · domani' : `futura · tra ${diff} gg`; }
+            else if (diff === 0) { cls = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'; txt = 'oggi'; }
+            else { cls = 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'; txt = diff === -1 ? 'passata · ieri' : `passata · ${-diff} gg fa`; }
+            return `<span class="inline-block mt-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${cls}">${txt}</span>`;
+        }
+        function dateCell(iso) { return iso ? `${fmtDate(iso)}<br>${dateBadge(iso)}` : '—'; }
+
+        function fmtDiv(v) { return Number(v).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 5 }); }
+
+        function setDivCur(id, cur) {
+            const item = portfolio.find(e => e.id === id);
+            if (!item) return;
+            item.divCur = cur; item.divCurLocked = true;
+            saveToStorage(); renderCedole();
+            refreshFx().then(() => renderCedole());
+        }
+        function setPayDate(id, v) {
+            const item = portfolio.find(e => e.id === id);
+            if (item) { item.payDate = v; saveToStorage(); renderCedole(); }
+        }
+
+        // Data usata dal filtro: pagamento (default) oppure stacco
+        function cedolaFilterDate(item, basis) {
+            return basis === 'ex' ? ((item.lastDiv && item.lastDiv.date) || '') : (item.payDate || '');
+        }
+        function setCedoleCurrentMonth() {
+            const now = new Date().toLocaleDateString('sv-SE'); // YYYY-MM-DD locale
+            const yearEl = document.getElementById('cedoleYear');
+            const y = now.slice(0, 4);
+            // l'anno corrente va garantito tra le opzioni anche se nessuna cedola cade in quell'anno
+            if (![...yearEl.options].some(o => o.value === y)) yearEl.add(new Option(y, y));
+            document.getElementById('cedoleMonth').value = now.slice(5, 7);
+            yearEl.value = y;
+            renderCedole();
+        }
+        function resetCedoleFilter() {
+            document.getElementById('cedoleBasis').value = 'pay';
+            document.getElementById('cedoleMonth').value = 'ALL';
+            document.getElementById('cedoleYear').value = 'ALL';
+            document.getElementById('cedoleHideNoShares').checked = true;
+            renderCedole();
+        }
+
+        function renderCedole() {
+            const body = document.getElementById('cedole-body'), foot = document.getElementById('cedole-foot');
+            const hideNoShares = document.getElementById('cedoleHideNoShares').checked;
+            const allRows = portfolio.filter(i => i.dividend !== 'Accumulo' && (!hideNoShares || i.shares > 0));
+
+            // Filtro mese/anno (gli anni disponibili derivano dalle date presenti)
+            const basisEl = document.getElementById('cedoleBasis'), monthEl = document.getElementById('cedoleMonth'), yearEl = document.getElementById('cedoleYear');
+            const basis = basisEl.value, fMonth = monthEl.value;
+            const years = [...new Set(allRows.map(i => cedolaFilterDate(i, basis).slice(0, 4)).filter(Boolean))].sort();
+            if (yearEl.value !== 'ALL' && !years.includes(yearEl.value)) years.push(yearEl.value);
+            const prevYear = yearEl.value;
+            yearEl.innerHTML = '<option value="ALL">Tutti gli anni</option>' + years.sort().map(y => `<option value="${y}">${y}</option>`).join('');
+            yearEl.value = years.includes(prevYear) ? prevYear : 'ALL';
+            const fYear = yearEl.value;
+            const filtering = fMonth !== 'ALL' || fYear !== 'ALL';
+            const rows = !filtering ? allRows : allRows.filter(i => {
+                const d = cedolaFilterDate(i, basis);
+                if (!d) return false;
+                return (fYear === 'ALL' || d.slice(0, 4) === fYear) && (fMonth === 'ALL' || d.slice(5, 7) === fMonth);
+            });
+            document.getElementById('cedole-count').textContent = filtering ? `${rows.length} / ${allRows.length}` : allRows.length;
+            if (!allRows.length) {
+                body.innerHTML = '<tr><td colspan="9" class="py-6 text-slate-500 dark:text-slate-400">' + (hideNoShares && portfolio.some(i => i.dividend !== 'Accumulo') ? 'Nessun ETF a cedola con quote in portafoglio.' : 'Nessun ETF a cedola in portafoglio.') + '</td></tr>';
+                foot.innerHTML = '';
+                return;
+            }
+            if (!rows.length) {
+                body.innerHTML = '<tr><td colspan="9" class="py-6 text-slate-500 dark:text-slate-400">Nessuna cedola con data di ' + (basis === 'ex' ? 'stacco' : 'pagamento') + ' nel periodo selezionato.</td></tr>';
+                foot.innerHTML = '';
+                return;
+            }
+            let sl = 0, sn = 0;
+            const todayIso = new Date().toLocaleDateString('sv-SE');
+            let anyFuture = false;
+            body.innerHTML = rows.map(item => {
+                const m = cedolaMetrics(item);
+                if (m.lorda !== null) { sl += m.lorda; sn += m.netta; }
+                const opts = ['EUR', 'USD', 'GBP', 'CHF'].map(c => `<option value="${c}" ${c === m.cur ? 'selected' : ''}>${c}</option>`).join('');
+                const na = item.shares > 0 ? 'n/d' : '—';
+                const auto = item.divSrc === 'stockanalysis';
+                if ((item.payDate || (item.lastDiv && item.lastDiv.date) || '') > todayIso) anyFuture = true;
+                const srcTip = auto ? 'Fonte: stockanalysis.com (Borsa Italiana, S&P Global)' : 'Fonte: Yahoo Finance, valuta stimata dal fondo' + (item.divErr ? ' — ' + String(item.divErr).replace(/"/g, '') : '');
+                const cell = 'py-2 px-3 text-slate-900 dark:text-slate-100';
+                return `<tr class="hover:bg-slate-50/90 dark:hover:bg-slate-800/50">
+                    <td class="py-2 px-3 font-medium bg-sheet-tickerBg dark:bg-sheet-tickerDark">${item.ticker}</td>
+                    <td class="${cell}">${item.dividend}</td>
+                    <td class="${cell} font-semibold" title="${srcTip}">${m.perShare !== null ? fmtDiv(m.perShare) + ' ' + m.cur : '—'}</td>
+                    <td class="py-1 px-2">${auto ? m.cur : `<select onchange="setDivCur('${item.id}', this.value)" class="px-1.5 py-0.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded">${opts}</select>*`}</td>
+                    <td class="${cell}">${m.fx !== null ? fmtNumber(m.fx, 4) : 'n/d'}</td>
+                    <td class="${cell}">${m.lorda !== null ? fmtCurrency(m.lorda) : na}</td>
+                    <td class="${cell} font-bold text-emerald-600 dark:text-emerald-400" title="Tasse ${Math.round(m.taxRate * 100)}%">${m.netta !== null ? fmtCurrency(m.netta) : na}</td>
+                    <td class="${cell}">${dateCell(item.lastDiv && item.lastDiv.date)}</td>
+                    ${auto ? `<td class="${cell}">${dateCell(item.payDate)}</td>` : `<td class="py-1 px-2"><input type="date" value="${item.payDate || ''}" onchange="setPayDate('${item.id}', this.value)" class="px-1.5 py-0.5 bg-amber-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded">${item.payDate ? '<br>' + dateBadge(item.payDate) : ''}</td>`}
+                </tr>`;
+            }).join('');
+            foot.innerHTML = `<tr class="font-bold">
+                <td colspan="5" class="py-2.5 px-4 text-right !border-0">Totale${filtering ? ' (filtrato)' : ''}${anyFuture ? '<br><span class="text-[10px] font-normal text-amber-700 dark:text-amber-400">include cedole non ancora pagate</span>' : ''}</td>
+                <td class="total-box py-2.5 px-3 bg-sheet-totalBg dark:bg-sheet-totalDark">${fmtCurrency(sl)}</td>
+                <td class="total-box py-2.5 px-3 bg-sheet-totalBg dark:bg-sheet-totalDark">${fmtCurrency(sn)}</td>
+                <td colspan="2" class="!border-0"></td></tr>`;
+        }
+
+        // --- RENDERING COMPLETO ---
+        function renderAll() {
+            renderPortfolioBar();
+            renderKPIs();
+            renderTable();
+            renderCedole();
+        }
+
+        function renderKPIs() {
+            let totCarico = 0;
+            let totAttuale = 0;
+            let totTasse = 0;
+            let totTerEuro = 0;
+
+            portfolio.forEach(item => {
+                const m = calculateMetrics(item);
+                totCarico += m.carico;
+                totAttuale += m.attualeTot;
+                totTasse += m.tasse;
+                totTerEuro += m.terCostEuro;
+            });
+
+            const totDiffLorda = totAttuale - totCarico;
+            const totDiffNetta = totDiffLorda - totTasse;
+            const totVarPerc = totCarico > 0 ? (totDiffLorda / totCarico) * 100 : 0;
+            const terMedio = totAttuale > 0 ? (totTerEuro / totAttuale) * 100 : 0;
+
+            const isPositive = totDiffLorda >= 0;
+            const colorClass = isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400';
+            const badgeBg = isPositive ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400';
+
+            const kpiContainer = document.getElementById('kpi-cards');
+            kpiContainer.innerHTML = `
+                <div class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Valore di Carico Totale</span>
+                    <div class="text-lg sm:text-xl font-bold mt-1 text-slate-900 dark:text-white">${fmtCurrency(totCarico)}</div>
+                    <span class="text-[11px] text-slate-400 mt-1 block">Capitale investito</span>
+                </div>
+
+                <div class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Valore Attuale Portafoglio</span>
+                        <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full ${badgeBg}">
+                            ${isPositive ? '+' : ''}${fmtNumber(totVarPerc)}%
+                        </span>
+                    </div>
+                    <div class="text-lg sm:text-xl font-bold mt-1 text-slate-900 dark:text-white">${fmtCurrency(totAttuale)}</div>
+                    <span class="text-[11px] text-slate-400 mt-1 block">Controvalore di mercato</span>
+                </div>
+
+                <div class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Differenza Lorda</span>
+                    <div class="text-lg sm:text-xl font-bold mt-1 ${colorClass}">
+                        ${isPositive ? '+' : ''}${fmtCurrency(totDiffLorda)}
+                    </div>
+                    <span class="text-[11px] text-slate-400 mt-1 block">Prima delle imposte</span>
+                </div>
+
+                <div class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Differenza Netta</span>
+                    <div class="text-lg sm:text-xl font-bold mt-1 ${totDiffNetta >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}">
+                        ${totDiffNetta >= 0 ? '+' : ''}${fmtCurrency(totDiffNetta)}
+                    </div>
+                    <span class="text-[11px] text-slate-400 mt-1 block">Tasse stimate: ${fmtCurrency(totTasse)}</span>
+                </div>
+
+                <div class="col-span-2 lg:col-span-1 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Trattenuta Media (TER)</span>
+                    <div class="text-lg sm:text-xl font-bold mt-1 text-slate-900 dark:text-white">${fmtNumber(terMedio)}%</div>
+                    <span class="text-[11px] text-slate-400 mt-1 block">Costo annuo ~ ${fmtCurrency(totTerEuro)}</span>
+                </div>
+            `;
+        }
+
+        function renderTable() {
+            const search = document.getElementById('searchInput').value.toLowerCase().trim();
+            const assetFilter = document.getElementById('filterAsset').value;
+            const cedolaFilter = document.getElementById('filterCedola').value;
+
+            const filtered = portfolio.filter(item => {
+                const matchText = item.ticker.toLowerCase().includes(search) || item.isin.toLowerCase().includes(search);
+                const matchAsset = assetFilter === 'ALL' || item.assetType === assetFilter;
+                const matchCedola = cedolaFilter === 'ALL' || item.dividend === cedolaFilter;
+                return matchText && matchAsset && matchCedola;
+            });
+
+            document.getElementById('row-count').textContent = filtered.length;
+            const tbody = document.getElementById('etf-table-body');
+            const tfoot = document.getElementById('etf-table-foot');
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="20" class="py-10 text-center text-slate-500 dark:text-slate-400">
+                            ${portfolio.length === 0 ? 'Questo portafoglio è vuoto: usa “Aggiungi ETF” oppure “Importa dati”.' : 'Nessun ETF trovato con i filtri selezionati.'}
+                        </td>
+                    </tr>
+                `;
+                tfoot.innerHTML = '';
+                return;
+            }
+
+            let sumCarico = 0;
+            let sumAttuale = 0;
+            let sumDiffLorda = 0;
+            let sumDiffNetta = 0;
+            let sumTasse = 0;
+
+            tbody.innerHTML = filtered.map(item => {
+                const m = calculateMetrics(item);
+                sumCarico += m.carico;
+                sumAttuale += m.attualeTot;
+                sumDiffLorda += m.diffLorda;
+                sumDiffNetta += m.diffNetta;
+                sumTasse += m.tasse;
+
+                const hasShares = item.shares > 0;
+                const isGain = m.diffLorda >= 0;
+                const isPriceAboveBuy = item.buyPrice > 0 && item.currPrice >= item.buyPrice;
+                const isDailyUp = item.change >= 0;
+
+                // Colori fedeli allo screenshot: rosso (#dc2626) in perdita, verde (#16a34a) in guadagno
+                const currPriceClass = item.buyPrice === 0
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : (isPriceAboveBuy ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400');
+
+                const gainTextClass = !hasShares
+                    ? 'text-slate-800 dark:text-slate-200'
+                    : (isGain ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-red-600 dark:text-red-400 font-bold');
+
+                const netTextClass = !hasShares
+                    ? 'text-slate-800 dark:text-slate-200'
+                    : (m.diffNetta >= 0 ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-red-600 dark:text-red-400 font-bold');
+
+                const varPercColorClass = m.varPerc === null
+                    ? 'text-slate-500'
+                    : (m.varPerc >= 0 ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-red-600 dark:text-red-400 font-bold');
+
+                // CHANGE (€) con triangolo rosso ▼ o + verde come in Google Sheets
+                const changeFormatted = isDailyUp
+                    ? `<span class="text-emerald-600 dark:text-emerald-400 font-semibold">+${fmtPrice(item.change)}</span>`
+                    : `<span class="text-red-600 dark:text-red-400 font-semibold">▼ ${fmtCurrency(item.change)}</span>`;
+
+                // Rappresentazione della posizione del valore attuale in una linea tra Low52 e High52
+                const minMaxLineHTML = `
+                    <div class="w-24 mx-auto flex flex-col items-center gap-0.5" title="LOW52: ${fmtPrice(item.low52)} € | Attuale: ${fmtPrice(item.currPrice)} € (${Math.round(m.pos52Percent)}%) | HIGH52: ${fmtPrice(item.high52)} €">
+                        <div class="relative w-full h-3 flex items-center">
+                            <!-- Estremo sinistro Low52 -->
+                            <span class="w-[1.5px] h-2 bg-slate-500 dark:bg-slate-400 shrink-0"></span>
+                            <!-- Linea orizzontale continua -->
+                            <div class="relative flex-1 h-[2px] bg-slate-300 dark:bg-slate-600">
+                                <!-- Segmento riempito fino al valore attuale -->
+                                <div class="absolute left-0 top-0 h-full bg-blue-600 dark:bg-blue-400" style="width: ${m.pos52Percent.toFixed(1)}%"></div>
+                                <!-- Indicatore circolare posizione Valore Attuale -->
+                                <span class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full bg-amber-500 border-[1.5px] border-slate-900 dark:border-white shadow-xs" style="left: ${m.pos52Percent.toFixed(1)}%"></span>
+                            </div>
+                            <!-- Estremo destro High52 -->
+                            <span class="w-[1.5px] h-2 bg-slate-500 dark:bg-slate-400 shrink-0"></span>
+                        </div>
+                    </div>
+                `;
+
+                // Linea blu 360 giorni come nello screenshot
+                const sheetSparkline = (item.histDates && item.history.length > 1)
+                    ? generateSheetBlueLineSVG(item.history)
+                    : `<span class="text-[11px] ${item.err ? 'text-red-500' : 'text-slate-400'}" title="${(item.err || '').replace(/"/g, '')}">${item.err ? 'errore: apri per dettagli' : (getProxyPrefix() ? 'caricamento...' : 'imposta proxy')}</span>`;
+
+                return `
+                    <tr class="hover:bg-slate-50/90 dark:hover:bg-slate-800/50 transition-colors">
+                        <!-- 1. Ticker (Sticky SX con sfondo verde Google Sheet #d9ead3 -> Link diretto justETF) -->
+                        <td class="py-2 px-3 sticky left-0 z-10 bg-sheet-tickerBg dark:bg-sheet-tickerDark">
+                            <a href="https://www.justetf.com/it/etf-profile.html?isin=${encodeURIComponent(item.isin)}" target="_blank" rel="noopener noreferrer" class="font-medium text-blue-700 dark:text-blue-300 underline hover:text-blue-900" title="Apri scheda ${item.ticker} su justETF">
+                                ${item.ticker}
+                            </a>
+                        </td>
+
+                        <!-- 2. ISIN -->
+                        <td class="py-2 px-3 text-slate-800 dark:text-slate-200">
+                            <button onclick="copyISIN('${item.isin}')" class="hover:underline" title="Clicca per copiare ISIN">
+                                ${item.isin}
+                            </button>
+                        </td>
+
+                        <!-- 3. Quote acquistate -->
+                        <td class="py-2 px-2.5 text-slate-900 dark:text-slate-100">
+                            <input type="number" step="0.0001" min="0" value="${item.shares}" onchange="updateField('${item.id}','shares',this.value)" title="Modifica quote acquistate" class="w-[5.5rem] px-1.5 py-0.5 text-center bg-amber-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </td>
+
+                        <!-- 4. Valore d'acquisto -->
+                        <td class="py-2 px-3 font-bold text-slate-900 dark:text-white">
+                            <input type="number" step="0.001" min="0" value="${item.buyPrice > 0 ? item.buyPrice : ''}" placeholder="0" onchange="updateField('${item.id}','buyPrice',this.value)" title="Modifica valore d'acquisto (€ per quota)" class="w-[5.5rem] px-1.5 py-0.5 text-center bg-amber-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </td>
+
+                        <!-- 5. Valore Attuale (Unitario - Borsa di Milano) -->
+                        <td class="py-2 px-3 font-semibold ${currPriceClass}" title="Quotazione Borsa Italiana (Milano)">
+                            ${fmtPrice(item.currPrice)}
+                        </td>
+
+                        <!-- 6. HIGH52 -->
+                        <td class="py-2 px-2.5 text-slate-800 dark:text-slate-200">
+                            ${fmtPrice(item.high52)}
+                        </td>
+
+                        <!-- 7. LOW52 -->
+                        <td class="py-2 px-2.5 text-slate-800 dark:text-slate-200">
+                            ${fmtPrice(item.low52)}
+                        </td>
+
+                        <!-- 8. CHANGE (€) -->
+                        <td class="py-2 px-3">
+                            ${changeFormatted}
+                        </td>
+
+                        <!-- 9. Min/Max (Linea tra Low52 e High52) -->
+                        <td class="py-2 px-2.5">
+                            ${minMaxLineHTML}
+                        </td>
+
+                        <!-- 10. Valore di carico (Quote acquistate x Valore d'acquisto) -->
+                        <td class="py-2 px-3 text-slate-900 dark:text-slate-100">
+                            ${fmtCurrency(m.carico)}
+                        </td>
+
+                        <!-- 11. Valore attuale (Quote acquistate x Valore attuale) -->
+                        <td class="py-2 px-3 text-slate-900 dark:text-slate-100">
+                            ${fmtCurrency(m.attualeTot)}
+                        </td>
+
+                        <!-- 12. Var% (=IF(Valore attuale>0; ((Valore attuale - Valore di carico)/Valore di carico)*100; '')) -->
+                        <td class="py-2 px-2.5 ${varPercColorClass}" title="Formula: IF(Valore attuale>0; ((Valore attuale - Valore di carico)/Valore di carico)*100; '')">
+                            ${m.varPerc !== null ? `${fmtNumber(m.varPerc, 1)} %` : ''}
+                        </td>
+
+                        <!-- 13. Differenza lorda (Valore attuale - Valore di carico) -->
+                        <td class="py-2 px-3 ${gainTextClass}">
+                            ${fmtCurrency(m.diffLorda)}
+                        </td>
+
+                        <!-- 14. Differenza netta (=IF((Valore attuale - Valore di carico)>0; (Valore attuale - Valore di carico)*(1-Tasse); (Valore attuale - Valore di carico))) -->
+                        <td class="py-2 px-3 ${netTextClass}" title="Tasse applicate (${Math.round(m.taxRate * 100)}%): ${fmtCurrency(m.tasse)}">
+                            ${fmtCurrency(m.diffNetta)}
+                        </td>
+
+                        <!-- 15. Tasse (Aliquota 18% o 26%) -->
+                        <td class="py-2 px-2.5 text-slate-900 dark:text-slate-100" title="Imposta stimata su plusvalenza: ${fmtCurrency(m.tasse)}">
+                            ${Math.round(m.taxRate * 100)}%
+                        </td>
+
+                        <!-- 16. Cadenza Cedola -->
+                        <td class="py-2 px-3 text-slate-900 dark:text-slate-100">
+                            ${item.dividend}
+                        </td>
+
+                        <!-- 17. Trattenuta ETF (TER) -->
+                        <td class="py-2 px-2.5 text-slate-900 dark:text-slate-100" title="Costo annuo stimato: ${fmtCurrency(m.terCostEuro)}">
+                            ${fmtNumber(item.ter, 2)}%${item.metaOk ? '' : '<sup title="Non ancora letto da justETF">*</sup>'}
+                        </td>
+
+                        <!-- 18. Grafico Prezzo (360 giorni) -->
+                        <td class="py-1 px-2 cursor-pointer" onclick="openChartModal('${item.id}')" title="Andamento 360 giorni (Borsa di Milano) - Clicca per ingrandire">
+                            ${sheetSparkline}
+                        </td>
+
+                        <!-- 19. Ticker (Replica a destra con sfondo verde #d9ead3 -> Link diretto justETF) -->
+                        <td class="py-2 px-3 bg-sheet-tickerBg dark:bg-sheet-tickerDark">
+                            <a href="https://www.justetf.com/it/etf-profile.html?isin=${encodeURIComponent(item.isin)}" target="_blank" rel="noopener noreferrer" class="font-medium text-blue-700 dark:text-blue-300 underline hover:text-blue-900" title="Apri scheda ${item.ticker} su justETF">
+                                ${item.ticker}
+                            </a>
+                        </td>
+
+                        <!-- 20. Azioni -->
+                        <td class="py-1.5 px-2">
+                            <div class="inline-flex items-center gap-0.5">
+                                <button onclick="editETF('${item.id}')" class="p-1 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 rounded" title="Modifica riga">
+                                    <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                                </button>
+                                <button onclick="deleteETF('${item.id}')" class="p-1 text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 rounded" title="Elimina riga">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            const totVarPerc = sumCarico > 0 ? ((sumAttuale - sumCarico) / sumCarico) * 100 : 0;
+            const totIsGain = sumDiffLorda >= 0;
+            const totColorClass = totIsGain ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400';
+
+            // Riga Totale in basso esattamente allineata alle colonne Carico / Attuale / Var% / Diff. Lorda / Diff. Netta
+            tfoot.innerHTML = `
+                <tr class="font-bold text-xs sm:text-[13px]">
+                    <td colspan="9" class="py-2.5 px-4 text-right !border-0 text-slate-900 dark:text-slate-100">
+                        Totale
+                    </td>
+                    <td class="total-box py-2.5 px-3 bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+                        ${fmtCurrency(sumCarico)}
+                    </td>
+                    <td class="total-box py-2.5 px-3 bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+                        ${fmtCurrency(sumAttuale)}
+                    </td>
+                    <td class="total-box py-2.5 px-2.5 bg-white dark:bg-slate-800 ${totColorClass}">
+                        ${fmtNumber(totVarPerc, 1)} %
+                    </td>
+                    <td class="total-box py-2.5 px-3 bg-sheet-totalBg dark:bg-sheet-totalDark ${totColorClass}">
+                        ${fmtCurrency(sumDiffLorda)}
+                    </td>
+                    <td class="total-box py-2.5 px-3 bg-sheet-totalBg dark:bg-sheet-totalDark ${sumDiffNetta >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}" title="Totale imposte stimate: ${fmtCurrency(sumTasse)}">
+                        ${fmtCurrency(sumDiffNetta)}
+                    </td>
+                    <td colspan="6" class="!border-0"></td>
+                </tr>
+            `;
+
+            lucide.createIcons();
+        }
+
+        // --- GENERATORE LINEA BLU STILE GOOGLE SHEETS SPARKLINE ---
+        function generateSheetBlueLineSVG(data, width = 165, height = 28) {
+            if (!data || data.length < 2) return '';
+            const min = Math.min(...data);
+            const max = Math.max(...data);
+            const range = max - min || 1;
+            const pad = 2;
+
+            const points = data.map((val, idx) => {
+                const x = pad + (idx / (data.length - 1)) * (width - pad * 2);
+                const y = height - pad - ((val - min) / range) * (height - pad * 2);
+                return `${x.toFixed(1)},${y.toFixed(1)}`;
+            }).join(' ');
+
+            return `
+                <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" class="mx-auto block overflow-visible">
+                    <polyline fill="none" stroke="#1155cc" stroke-width="1.35" stroke-linejoin="round" points="${points}" />
+                </svg>
+            `;
+        }
+
+        // --- GENERATORE SPARKLINE SVG (Modale Ingrandita) ---
+        function generateSparklineSVG(data, isPositive, width = 480, height = 180) {
+            if (!data || data.length < 2) return '';
+            const min = Math.min(...data);
+            const max = Math.max(...data);
+            const range = max - min || 1;
+            const pad = 6;
+
+            const points = data.map((val, idx) => {
+                const x = pad + (idx / (data.length - 1)) * (width - pad * 2);
+                const y = height - pad - ((val - min) / range) * (height - pad * 2);
+                return `${x.toFixed(1)},${y.toFixed(1)}`;
+            }).join(' ');
+
+            const strokeColor = '#1155cc';
+            const fillId = `grad-${Math.random().toString(36).substr(2, 6)}`;
+            const areaPoints = `${pad},${height} ${points} ${width - pad},${height}`;
+
+            return `
+                <svg width="100%" height="${height}" viewBox="0 0 ${width} ${height}" class="overflow-visible">
+                    <defs>
+                        <linearGradient id="${fillId}" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="${strokeColor}" stop-opacity="0.22"/>
+                            <stop offset="100%" stop-color="${strokeColor}" stop-opacity="0.0"/>
+                        </linearGradient>
+                    </defs>
+                    <polygon points="${areaPoints}" fill="url(#${fillId})" />
+                    <polyline fill="none" stroke="${strokeColor}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" points="${points}" />
+                </svg>
+            `;
+        }
+
+        // --- MODALE GRAFICO ESPANSO (360 GIORNI) ---
+        function fmtDate(s) { return s ? s.split('-').reverse().join('/') : ''; }
+
+        function openChartModal(id) {
+            const item = portfolio.find(e => e.id === id);
+            if (!item) return;
+            const h = item.history || [], d = item.histDates || [];
+            const body = document.getElementById('chart-modal-body');
+            document.getElementById('chart-modal-title').textContent = `${item.ticker} (${item.isin}) — Ultimi 12 mesi`;
+            const sub = document.getElementById('chart-modal-subtitle');
+            if (h.length < 2 || !d.length) {
+                sub.textContent = 'Nessun dato reale disponibile.';
+                body.innerHTML = `<p class="text-sm text-slate-500 dark:text-slate-400 text-center">${item.err ? 'Ultimo errore: ' + item.err : (getProxyPrefix() ? 'Dati in arrivo...' : 'Per scaricare i dati imposta il proxy personale nel campo in alto.')}<br>Premi "Aggiorna Borsa di Milano" per riprovare.</p>`;
+            } else {
+                const W = 480, H = 200, pl = 46, pr = 8, pt = 10, pb = 20;
+                const min = Math.min(...h), max = Math.max(...h), rng = (max - min) || 1;
+                const x = i => pl + i / (h.length - 1) * (W - pl - pr);
+                const y = v => pt + (1 - (v - min) / rng) * (H - pt - pb);
+                const pts = h.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+                const ch = (h[h.length - 1] - h[0]) / h[0] * 100;
+                body.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="100%" class="text-slate-500 dark:text-slate-400 select-none" style="overflow:visible">
+                    <line x1="${pl}" x2="${W - pr}" y1="${y(max)}" y2="${y(max)}" stroke="currentColor" stroke-opacity=".25" stroke-dasharray="3"/>
+                    <line x1="${pl}" x2="${W - pr}" y1="${y(min)}" y2="${y(min)}" stroke="currentColor" stroke-opacity=".25" stroke-dasharray="3"/>
+                    <text x="${pl - 4}" y="${y(max) + 3}" text-anchor="end" font-size="10" fill="currentColor">${fmtPrice(max)}</text>
+                    <text x="${pl - 4}" y="${y(min) + 3}" text-anchor="end" font-size="10" fill="currentColor">${fmtPrice(min)}</text>
+                    <text x="${pl}" y="${H - 5}" font-size="10" fill="currentColor">${fmtDate(d[0])}</text>
+                    <text x="${W - pr}" y="${H - 5}" font-size="10" text-anchor="end" fill="currentColor">${fmtDate(d[d.length - 1])}</text>
+                    <polyline fill="none" stroke="#1155cc" stroke-width="1.6" stroke-linejoin="round" points="${pts}"/>
+                    <line id="hv-line" y1="${pt}" y2="${H - pb}" stroke="currentColor" stroke-opacity=".5" style="display:none"/>
+                    <circle id="hv-dot" r="3.5" fill="#1155cc" style="display:none"/>
+                    <text id="hv-txt" x="${W / 2}" y="${pt + 2}" font-size="11" text-anchor="middle" fill="currentColor" font-weight="600"></text>
+                    <rect id="hv-area" x="${pl}" y="${pt}" width="${W - pl - pr}" height="${H - pt - pb}" fill="transparent"/>
+                </svg>`;
+                const svg = body.querySelector('svg');
+                const move = ev => {
+                    const r = svg.getBoundingClientRect();
+                    const px = (ev.clientX - r.left) / r.width * W;
+                    const i = Math.max(0, Math.min(h.length - 1, Math.round((px - pl) / (W - pl - pr) * (h.length - 1))));
+                    const ln = svg.querySelector('#hv-line'), dot = svg.querySelector('#hv-dot');
+                    ln.setAttribute('x1', x(i)); ln.setAttribute('x2', x(i)); ln.style.display = '';
+                    dot.setAttribute('cx', x(i)); dot.setAttribute('cy', y(h[i])); dot.style.display = '';
+                    svg.querySelector('#hv-txt').textContent = `${fmtDate(d[i])}: ${fmtPrice(h[i])} €`;
+                };
+                svg.querySelector('#hv-area').addEventListener('pointermove', move);
+                const upd = item.updatedAt ? new Date(item.updatedAt).toLocaleString('it-IT') : 'n/d';
+                sub.innerHTML = `Chiusure giornaliere reali da Yahoo Finance (${item.ticker}.MI), ${h.length} sedute, ${ch >= 0 ? '+' : ''}${fmtNumber(ch, 1)}% nel periodo. Aggiornato il ${upd}.<br>
+                    Verifica: <a class="underline text-blue-600" target="_blank" rel="noopener" href="https://finance.yahoo.com/quote/${encodeURIComponent(item.ticker)}.MI/chart">Yahoo</a> ·
+                    <a class="underline text-blue-600" target="_blank" rel="noopener" href="https://www.justetf.com/it/etf-profile.html?isin=${encodeURIComponent(item.isin)}">justETF</a>`;
+            }
+            const modal = document.getElementById('chart-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeChartModal() {
+            const modal = document.getElementById('chart-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        // --- GESTIONE FORM CRUD ---
+        function openModal(item = null) {
+            document.getElementById('modal-title').textContent = item ? `Modifica ${item.ticker}` : 'Aggiungi Nuovo ETF';
+            document.getElementById('edit-id').value = item ? item.id : '';
+            document.getElementById('f-ticker').value = item ? item.ticker : '';
+            document.getElementById('f-isin').value = item ? item.isin : '';
+            document.getElementById('f-shares').value = item ? item.shares : '';
+            document.getElementById('f-buyPrice').value = item && item.buyPrice > 0 ? item.buyPrice : '';
+            const modal = document.getElementById('etf-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('etf-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        async function saveETF(e) {
+            e.preventDefault();
+            const id = document.getElementById('edit-id').value;
+            const existing = id ? portfolio.find(x => x.id === id) : null;
+            const ticker = document.getElementById('f-ticker').value.toUpperCase().trim();
+            const isin = document.getElementById('f-isin').value.toUpperCase().trim();
+            const btn = document.getElementById('btn-save');
+            btn.disabled = true; btn.textContent = 'Recupero dati...';
+            try {
+                const [mkt, info] = await Promise.allSettled([fetchYahooMilan(ticker), fetchJustEtf(isin)]);
+                if (mkt.status === 'rejected' && !existing) {
+                    showToast(`Impossibile recuperare i prezzi di ${ticker}.MI: ${mkt.reason.message}`);
+                    return;
+                }
+                const item = existing || { id: Date.now().toString(), ter: 0, dividend: 'Accumulo', assetType: 'AZIONARIO', change: 0, history: [], metaOk: false };
+                Object.assign(item, {
+                    ticker, isin,
+                    shares: parseFloat(document.getElementById('f-shares').value) || 0,
+                    buyPrice: parseFloat(document.getElementById('f-buyPrice').value) || 0
+                });
+                if (mkt.status === 'fulfilled') Object.assign(item, mkt.value);
+                if (info.status === 'fulfilled') applyJustEtf(item, info.value);
+                if (!existing) portfolio.push(item);
+                saveToStorage();
+                renderAll();
+                closeModal();
+                const warn = [mkt.status === 'rejected' ? 'prezzi non aggiornati' : '', info.status === 'rejected' ? 'TER/cedola/aliquota da justETF non letti (default: 0%, Accumulo, 26%)' : ''].filter(Boolean).join('; ');
+                showToast(warn ? `${ticker} salvato, ma: ${warn}. Riprova con "Aggiorna".` : `${ticker} salvato con dati da Yahoo Finance e justETF`);
+            } finally {
+                btn.disabled = false; btn.textContent = 'Salva ETF';
+            }
+        }
+
+        function editETF(id) {
+            const item = portfolio.find(e => e.id === id);
+            if (item) openModal(item);
+        }
+
+        function deleteETF(id) {
+            const item = portfolio.find(e => e.id === id);
+            if (!item) return;
+            portfolio = portfolio.filter(e => e.id !== id);
+            saveToStorage();
+            renderAll();
+            showToast(`ETF ${item.ticker} rimosso`);
+        }
+
+        function generateInitialHistory(start, end) {
+            const pts = [];
+            const steps = 12; // 12 intervalli mensili = 360 giorni
+            for (let i = 0; i <= steps; i++) {
+                const progress = i / steps;
+                const base = start + (end - start) * progress;
+                const noise = (i === 0 || i === steps) ? 0 : (Math.random() - 0.5) * Math.abs(end - start) * 0.25;
+                pts.push(Number((base + noise).toFixed(2)));
+            }
+            return pts;
+        }
+
+        // --- DATI DI MERCATO: Yahoo Finance, Borsa di Milano (ticker + ".MI") ---
+        // Il browser non può chiamare Yahoo direttamente (CORS): si passa da un proxy.
+        // Se ne hai uno tuo, sostituisci l'URL qui sotto.
+        // Proxy personale (Cloudflare Worker) salvato nel browser. I proxy pubblici sono solo un tentativo di riserva.
+        const PROXIES = ['https://api.allorigins.win/raw?url=', 'https://api.codetabs.com/v1/proxy/?quest='];
+        const DEFAULT_PROXY = 'https://super-etf.dr-danicar28.workers.dev';
+        function getProxyPrefix() {
+            try {
+                const v = (localStorage.getItem('etf_proxy_url') ?? DEFAULT_PROXY).trim();
+                if (!v) return null;
+                return v.includes('?url=') ? v : v.replace(/\/+$/, '') + '/?url=';
+            } catch (e) { return null; }
+        }
+        function saveProxy() {
+            const v = document.getElementById('proxyInput').value.trim();
+            try { localStorage.setItem('etf_proxy_url', v); } catch (e) {}
+            showToast(v ? 'Proxy salvato. Scarico i dati...' : 'Proxy rimosso');
+            if (v) fetchMilanMarketData();
+        }
+
+        async function proxiedFetch(urls, parse) {
+            const errs = [];
+            const custom = getProxyPrefix();
+            const prefixes = custom ? [custom] : PROXIES;
+            for (const pre of prefixes) {
+                for (const url of urls) {
+                    try {
+                        let timer;
+                        const res = await Promise.race([
+                            fetch(pre + (pre.includes('codetabs') ? url : encodeURIComponent(url))),
+                            new Promise((_, rej) => { timer = setTimeout(() => rej(new Error('timeout')), 8000); })
+                        ]);
+                        clearTimeout(timer);
+                        if (!res.ok) throw new Error('HTTP ' + res.status);
+                        return parse(await res.text());
+                    } catch (e) {
+                        let host = pre; try { host = new URL(pre).hostname; } catch (_) {}
+                        errs.push(`${host}: ${e.name === 'AbortError' ? 'timeout' : e.message}`);
+                    }
+                }
+            }
+            throw new Error((custom ? 'il tuo proxy non ha risposto' : 'nessun proxy pubblico ha risposto: imposta il proxy personale') + ' (' + errs.slice(0, 2).join(' | ') + ')');
+        }
+
+        async function fetchYahooMilan(ticker) {
+            const sym = encodeURIComponent(ticker.toUpperCase() + '.MI');
+            const json = await proxiedFetch(
+                [`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?range=1y&interval=1d&events=div`, `https://query2.finance.yahoo.com/v8/finance/chart/${sym}?range=1y&interval=1d&events=div`],
+                t => { const j = JSON.parse(t); if (!j?.chart?.result?.[0]) throw new Error('risposta non valida'); return j; });
+            const r = json?.chart?.result?.[0];
+            if (!r) throw new Error('Ticker non trovato');
+            const meta = r.meta || {};
+            if (meta.currency && meta.currency !== 'EUR') throw new Error('Valuta non EUR: ' + meta.currency);
+            const rawC = r.indicators?.quote?.[0]?.close || [], ts = r.timestamp || [];
+            const history = [], histDates = [];
+            rawC.forEach((v, i) => {
+                if (typeof v === 'number' && ts[i]) {
+                    history.push(Number(v.toFixed(4)));
+                    histDates.push(new Date(ts[i] * 1000).toISOString().slice(0, 10));
+                }
+            });
+            if (history.length < 20) throw new Error('Storico insufficiente');
+            const divList = Object.values(r.events?.dividends || {}).filter(x => x && x.amount > 0 && x.date).sort((a, b) => a.date - b.date);
+            const ld = divList[divList.length - 1];
+            const price = meta.regularMarketPrice ?? history[history.length - 1];
+            return {
+                currPrice: price,
+                high52: meta.fiftyTwoWeekHigh ?? Math.max(...history),
+                low52: meta.fiftyTwoWeekLow ?? Math.min(...history),
+                change: price - history[history.length - 2],
+                history, histDates,
+                updatedAt: new Date().toISOString(),
+                lastDiv: ld ? { amount: ld.amount, date: new Date(ld.date * 1000).toISOString().slice(0, 10) } : null
+            };
+        }
+
+        async function fetchMilanMarketData() {
+            if (portfolio.length === 0) return;
+            const pf = portfolio; // il portafoglio attivo al momento del clic, anche se poi se ne cambia
+            const btn = document.getElementById('btn-fetch-market');
+            const label = document.getElementById('refresh-label');
+            const originalLabel = label ? label.textContent : '';
+            if (btn) btn.disabled = true;
+            if (label) label.textContent = 'Recupero dati...';
+            showToast('Recupero quotazioni Borsa di Milano...');
+
+            const results = await Promise.allSettled(pf.map(e => fetchYahooMilan(e.ticker)));
+            let ok = 0;
+            const failed = [];
+            results.forEach((res, i) => {
+                const item = pf[i];
+                if (res.status === 'fulfilled') {
+                    Object.assign(item, res.value);
+                    item.err = null;
+                    ok++;
+                } else {
+                    failed.push(item.ticker);
+                    item.err = res.reason && res.reason.message;
+                    console.error(item.ticker, res.reason);
+                }
+            });
+            const need = pf.filter(i => !i.metaOk || !i.metaAt || i.fundCur === undefined || Date.now() - i.metaAt > 7 * 864e5);
+            const metaRes = await Promise.allSettled(need.map(async i => applyJustEtf(i, await fetchJustEtf(i.isin))));
+            const metaOkCount = metaRes.filter(r => r.status === 'fulfilled').length;
+            await refreshDividends(pf);
+            await refreshFx();
+            saveToStorage();
+            renderAll();
+            if (need.length) console.log(`Anagrafica justETF aggiornata: ${metaOkCount}/${need.length}`);
+            const metaFail = metaRes.length - metaOkCount;
+            const firstErr = (pf.find(i => i.err) || {}).err;
+            showToast(failed.length
+                ? `Aggiornati ${ok}/${pf.length}. Non riusciti: ${failed.join(', ')}. Motivo: ${firstErr}`
+                : `Aggiornati ${ok}/${pf.length} ETF` + (metaFail ? `; TER/cedola non letti da justETF per ${metaFail}` : ' (prezzi, grafici, TER)'));
+            if (btn) btn.disabled = false;
+            if (label) label.textContent = originalLabel || 'Aggiorna Borsa di Milano';
+        }
+
+        // --- ANAGRAFICA da justETF (TER, cedola, aliquota italiana) ---
+        function parseJustEtfRows(rows) {
+            const ter = parseFloat(rows['total expense ratio']);
+            const pol = (rows['distribution policy'] || '').toLowerCase();
+            const fr = (rows['distribution frequency'] || '').toLowerCase();
+            let dividend = null;
+            if (pol.startsWith('accum')) dividend = 'Accumulo';
+            else if (/month/.test(fr)) dividend = 'Mensile';
+            else if (/quarter/.test(fr)) dividend = 'Trimestrale';
+            else if (/semi|half/.test(fr)) dividend = 'Semestrale';
+            else if (/annual|year/.test(fr)) dividend = 'Annuale';
+            const tax = parseFloat(rows['italy']);
+            const fc = (rows['fund currency'] || '').trim().toUpperCase().slice(0, 3);
+            return { ter: isFinite(ter) ? ter : null, dividend, taxPct: isFinite(tax) ? tax : null, fundCur: /^[A-Z]{3}$/.test(fc) ? fc : null };
+        }
+
+        async function fetchJustEtf(isin) {
+            const html = await proxiedFetch(
+                [`https://www.justetf.com/en-be/etf-profile.html?isin=${encodeURIComponent(isin)}`],
+                t => { if (!/total expense ratio/i.test(t)) throw new Error('pagina non valida'); return t; });
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            const rows = {};
+            doc.querySelectorAll('tr').forEach(tr => {
+                const c = tr.querySelectorAll('th,td');
+                if (c.length >= 2) {
+                    const k = c[0].textContent.trim().replace(/\s+/g, ' ').toLowerCase();
+                    if (!(k in rows)) rows[k] = c[1].textContent.trim().replace(/\s+/g, ' ');
+                }
+            });
+            const info = parseJustEtfRows(rows);
+            if (info.ter === null) throw new Error('scheda justETF non letta');
+            return info;
+        }
+
+        function applyJustEtf(item, info) {
+            if (info.ter !== null) item.ter = info.ter;
+            if (info.dividend) item.dividend = info.dividend;
+            if (info.taxPct !== null) item.assetType = info.taxPct >= 26 ? 'AZIONARIO' : 'OBBLIGAZIONARIO';
+            item.fundCur = info.fundCur || '';
+            if (!item.divCurLocked) item.divCur = info.fundCur || item.divCur || 'EUR';
+            item.metaOk = true;
+            item.metaAt = Date.now();
+        }
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const icon = document.getElementById('theme-icon');
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                localStorage.theme = 'light';
+                if (icon) icon.setAttribute('data-lucide', 'moon');
+            } else {
+                html.classList.add('dark');
+                localStorage.theme = 'dark';
+                if (icon) icon.setAttribute('data-lucide', 'sun');
+            }
+            lucide.createIcons();
+        }
+
+        function initTheme() {
+            const html = document.documentElement;
+            const icon = document.getElementById('theme-icon');
+            if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                html.classList.add('dark');
+                if (icon) icon.setAttribute('data-lucide', 'sun');
+            } else {
+                html.classList.remove('dark');
+                if (icon) icon.setAttribute('data-lucide', 'moon');
+            }
+        }
+
+        // --- FORMATTAZIONE E UTILITÀ ---
+        function fmtCurrency(val) {
+            const num = Number(val) || 0;
+            return num.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+        }
+
+        function fmtPrice(val) {
+            const num = Number(val) || 0;
+            const decimals = (Math.abs(num * 100) % 1 !== 0) ? 3 : 2;
+            return num.toLocaleString('it-IT', { minimumFractionDigits: decimals, maximumFractionDigits: 3 });
+        }
+
+        function fmtNumber(val, decimals = 2) {
+            const num = Number(val) || 0;
+            return num.toLocaleString('it-IT', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+        }
+
+        function copyISIN(isin) {
+            const tempInput = document.createElement('input');
+            tempInput.value = isin;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            showToast(`ISIN ${isin} copiato negli appunti`);
+        }
+
+        let toastTimer = null;
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            const msgEl = document.getElementById('toast-msg');
+            if (!toast || !msgEl) return;
+
+            msgEl.textContent = message;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            if (toastTimer) clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+                toast.classList.remove('translate-y-0', 'opacity-100');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
