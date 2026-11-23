@@ -348,6 +348,25 @@
         </div>
     </div>
 
+    <!-- Modale modifica singolo valore (Quote / Valore d'acquisto) -->
+    <div id="value-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4">
+        <form onsubmit="saveValueModal(event)" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-4">
+            <div>
+                <h3 id="value-modal-title" class="text-base font-bold text-slate-900 dark:text-white"></h3>
+                <p id="value-modal-hint" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5"></p>
+            </div>
+            <div>
+                <label id="value-modal-label" for="value-modal-input" class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1"></label>
+                <input type="text" inputmode="decimal" autocomplete="off" id="value-modal-input" class="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                <p id="value-modal-prev" class="text-[11px] text-slate-500 dark:text-slate-400 mt-1"></p>
+            </div>
+            <div class="flex justify-end gap-3">
+                <button type="button" onclick="closeValueModal()" class="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl">Annulla</button>
+                <button type="submit" class="px-5 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm">Salva</button>
+            </div>
+        </form>
+    </div>
+
     <!-- Toast Notification (Sostituisce alert/confirm) -->
     <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
         <div class="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-3 rounded-xl shadow-lg flex items-center gap-2.5 text-sm font-medium">
@@ -907,6 +926,53 @@
             };
         }
 
+        // --- POPUP DI MODIFICA VALORE (evita modifiche accidentali nella tabella) ---
+        const VALUE_FIELDS = {
+            shares: { label: 'Quote acquistate', hint: 'Numero di quote possedute (0 = solo watchlist).', fmt: v => fmtQty(v) },
+            buyPrice: { label: "Valore d'acquisto (€ per quota)", hint: 'Prezzo medio di carico per quota.', fmt: v => fmtPrice(v) + ' €' }
+        };
+        let valueEdit = null;
+
+        function openValueModal(id, field) {
+            const item = portfolio.find(e => e.id === id);
+            const cfg = VALUE_FIELDS[field];
+            if (!item || !cfg) return;
+            valueEdit = { id, field };
+            document.getElementById('value-modal-title').textContent = `${item.ticker} — ${cfg.label}`;
+            document.getElementById('value-modal-hint').textContent = cfg.hint;
+            document.getElementById('value-modal-label').textContent = cfg.label;
+            document.getElementById('value-modal-prev').textContent = `Valore attuale: ${cfg.fmt(item[field] || 0)}`;
+            const input = document.getElementById('value-modal-input');
+            input.value = item[field] > 0 ? String(item[field]).replace('.', ',') : '';
+            const modal = document.getElementById('value-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => { input.focus(); input.select(); }, 30);
+        }
+
+        function closeValueModal() {
+            const modal = document.getElementById('value-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            valueEdit = null;
+        }
+
+        function saveValueModal(e) {
+            e.preventDefault();
+            if (!valueEdit) return;
+            const raw = document.getElementById('value-modal-input').value.trim().replace(',', '.');
+            const n = raw === '' ? 0 : Number(raw);
+            if (!isFinite(n) || n < 0) { showToast('Inserisci un numero valido (zero o maggiore)'); return; }
+            const { id, field } = valueEdit;
+            closeValueModal();
+            updateField(id, field, n);
+            showToast('Valore aggiornato');
+        }
+
+        document.addEventListener('keydown', ev => {
+            if (ev.key === 'Escape' && valueEdit) closeValueModal();
+        });
+
         function updateField(id, field, value) {
             const item = portfolio.find(e => e.id === id);
             if (!item) return;
@@ -1288,12 +1354,12 @@
 
                         <!-- 3. Quote acquistate -->
                         <td class="py-2 px-2.5 text-slate-900 dark:text-slate-100">
-                            <input type="number" step="0.0001" min="0" value="${item.shares}" onchange="updateField('${item.id}','shares',this.value)" title="Modifica quote acquistate" class="w-[5.5rem] px-1.5 py-0.5 text-center bg-amber-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <button type="button" onclick="openValueModal('${item.id}','shares')" title="Clicca per modificare le quote acquistate" class="w-[5.5rem] px-1.5 py-0.5 text-center bg-amber-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded hover:border-indigo-500 hover:bg-amber-100 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">${fmtQty(item.shares)}</button>
                         </td>
 
                         <!-- 4. Valore d'acquisto -->
                         <td class="py-2 px-3 font-bold text-slate-900 dark:text-white">
-                            <input type="number" step="0.001" min="0" value="${item.buyPrice > 0 ? item.buyPrice : ''}" placeholder="0" onchange="updateField('${item.id}','buyPrice',this.value)" title="Modifica valore d'acquisto (€ per quota)" class="w-[5.5rem] px-1.5 py-0.5 text-center bg-amber-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <button type="button" onclick="openValueModal('${item.id}','buyPrice')" title="Clicca per modificare il valore d'acquisto (€ per quota)" class="w-[5.5rem] px-1.5 py-0.5 text-center bg-amber-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded hover:border-indigo-500 hover:bg-amber-100 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">${item.buyPrice > 0 ? fmtPrice(item.buyPrice) : '0'}</button>
                         </td>
 
                         <!-- 5. Valore Attuale (Unitario - Borsa di Milano) -->
