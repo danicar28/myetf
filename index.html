@@ -944,7 +944,7 @@
         }
 
         // --- INFO ETF: scheda descrittiva da justETF (cache locale per ISIN, non sincronizzata) ---
-        const INFO_KEY = 'etf_info_v1';
+        const INFO_KEY = 'etf_info_v2';
         let infoCache = null, infoReq = 0;
         function loadInfoCache() { try { infoCache = JSON.parse(localStorage.getItem(INFO_KEY) || '{}') || {}; } catch (e) { infoCache = {}; } }
         function saveInfoCache() { try { localStorage.setItem(INFO_KEY, JSON.stringify(infoCache)); } catch (e) {} }
@@ -967,15 +967,21 @@
         function infoValIt(v) { for (const [re, t] of INFO_VAL_IT) if (re.test(v)) return t; return v; }
 
         function findStrategyText(doc) {
-            const heads = [...doc.querySelectorAll('h1,h2,h3,h4,h5,h6,div,span,p,strong')]
-                .filter(el => /^(investment strategy|strategia di investimento)$/i.test(el.textContent.trim().replace(/\s+/g, ' ')));
-            for (const h of heads) {
-                const n = h.nextElementSibling;
-                if (n) { const t = n.textContent.trim(); if (t.length > 40 && t.length < 2500) return t; }
-                const par = h.parentElement;
-                if (par) { const t = par.textContent.replace(h.textContent, '').trim(); if (t.length > 40 && t.length < 2500) return t; }
-            }
-            return '';
+            const BLOCK = 'p,div,ul,ol,table,section,article,h1,h2,h3,h4,h5,h6,tr,nav,footer,header,script,style';
+            const BAD = /cookie|privacy|disclaimer|past performance|terms of use|risk warning|subscribe|newsletter|key facts and comparisons/i;
+            let best = '', bestScore = 0;
+            doc.querySelectorAll('p,div,span,li,section').forEach(el => {
+                if (el.querySelector(BLOCK)) return; // solo i blocchi "foglia": il paragrafo vero, non i contenitori
+                const t = el.textContent.replace(/\s+/g, ' ').trim();
+                if (t.length < 100 || t.length > 1800 || BAD.test(t)) return;
+                let sc = 0;
+                if (/seeks? to|aims? to|tracks?\b|replicat|invests? (in|primarily)|objective/i.test(t)) sc += 3;
+                if (/\bindex\b|\bindices\b/i.test(t)) sc += 2;
+                if (/\bETF\b|\bfund\b/i.test(t)) sc += 1;
+                if (t.length > 160) sc += 1;
+                if (sc > bestScore) { bestScore = sc; best = t; }
+            });
+            return bestScore >= 5 ? best : '';
         }
         function shortText(t, max = 650) {
             t = String(t || '').replace(/\s+/g, ' ').trim();
@@ -1004,7 +1010,8 @@
             });
             const h1 = doc.querySelector('h1');
             const meta = doc.querySelector('meta[name="description"]');
-            const desc = shortText(findStrategyText(doc) || (meta && meta.getAttribute('content')) || '');
+            const metaTxt = (meta && meta.getAttribute('content')) || '';
+            const desc = shortText(findStrategyText(doc) || (/key facts and comparisons|etf screener/i.test(metaTxt) ? '' : metaTxt));
             return { at: Date.now(), name: h1 ? h1.textContent.trim().replace(/\s+/g, ' ').slice(0, 160) : '', desc, rows };
         }
 
@@ -1028,6 +1035,27 @@
             return out.join(' ');
         }
 
+        const FOCUS_IT = {
+            'equity': 'Azioni', 'equities': 'Azioni', 'bonds': 'Obbligazioni', 'bond': 'Obbligazioni', 'world': 'Mondo', 'europe': 'Europa',
+            'emerging markets': 'Mercati emergenti', 'developed markets': 'Mercati sviluppati', 'technology': 'Tecnologia',
+            'artificial intelligence': 'Intelligenza artificiale', 'big data': 'Big data', 'dividend': 'Dividendi', 'small cap': 'Small cap',
+            'large cap': 'Large cap', 'mid cap': 'Mid cap', 'healthcare': 'Sanità', 'financials': 'Finanza', 'energy': 'Energia', 'gold': 'Oro',
+            'real estate': 'Immobiliare', 'government': 'Governativi', 'corporate': 'Societarie', 'high yield': 'High yield', 'usa': 'USA',
+            'united states': 'USA', 'japan': 'Giappone', 'china': 'Cina', 'india': 'India', 'money market': 'Mercato monetario',
+            'commodities': 'Materie prime', 'infrastructure': 'Infrastrutture', 'clean energy': 'Energia pulita', 'semiconductors': 'Semiconduttori'
+        };
+        function composeSummary(item, info) {
+            const r = (info && info.rows) || {};
+            if (!r.index && !r['investment focus']) return '';
+            const pol = r['distribution policy'] ? infoValIt(r['distribution policy']).toLowerCase() : '';
+            const dom = r['fund domicile'] ? infoValIt(r['fund domicile']) : '';
+            let t = 'ETF' + (pol ? ' ' + pol : '') + (dom ? ', domiciliato in ' + dom : '');
+            if (r.index) t += ', che replica l\'indice ' + r.index;
+            t += '.';
+            if (r['investment focus']) t += ' Focus di investimento: ' + r['investment focus'].split(',').map(x => FOCUS_IT[x.trim().toLowerCase()] || x.trim()).join(', ') + '.';
+            return t;
+        }
+
         function renderInfo(item, info, state, errMsg) {
             const taxPct = item.assetType === 'OBBLIGAZIONARIO' ? 18 : 26;
             document.getElementById('info-modal-title').textContent = (info && info.name) || item.ticker;
@@ -1048,7 +1076,12 @@
             } else if (state === 'error') {
                 descHtml = `<p class="text-red-600 dark:text-red-400">Informazioni non disponibili${errMsg ? ': ' + escHtml(String(errMsg).slice(0, 160)) : ''}.</p>
                     <button type="button" onclick="openInfoModal('${item.id}', true)" class="mt-2 px-3 py-1.5 text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg">Riprova</button>`;
-            } else descHtml = '<p class="text-slate-500 dark:text-slate-400">Descrizione non disponibile: consulta la scheda su justETF.</p>';
+            } else {
+                const sum = composeSummary(item, info);
+                descHtml = sum
+                    ? `<p class="leading-relaxed">${escHtml(sum)}</p><p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Sintesi automatica dai dati justETF: il testo descrittivo non è stato trovato nella scheda.</p>`
+                    : '<p class="text-slate-500 dark:text-slate-400">Descrizione non disponibile: consulta la scheda completa su justETF.</p>';
+            }
             const detail = info ? INFO_ROWS.map(([k, label]) => kv(label, info.rows && info.rows[k] ? infoValIt(info.rows[k]) : '')).join('') : '';
             document.getElementById('info-modal-body').innerHTML = `
                 <section>
@@ -1070,7 +1103,7 @@
             modal.classList.remove('hidden'); modal.classList.add('flex');
             const token = ++infoReq;
             let info = infoCache[item.isin];
-            const fresh = info && !force && Date.now() - info.at < 30 * 864e5;
+            const fresh = info && !force && Date.now() - info.at < (info.desc ? 30 : 1) * 864e5;
             if (fresh) renderInfo(item, info, 'ok');
             else {
                 renderInfo(item, info || null, info ? 'ok' : 'loading');
