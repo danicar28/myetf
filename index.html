@@ -293,7 +293,38 @@
                 </table>
             </div>
             <div id="cedole-cards" class="card-view p-2 space-y-2"></div>
-            <p class="px-4 pb-3 text-xs text-slate-500 dark:text-slate-400">Lorda = dividendo x1 quota × quote acquistate × cambio. Netta = lorda × (1 − tasse), con l'aliquota della tabella sopra. Dividendo, valuta, data di stacco e di pagamento: stockanalysis.com (Borsa Italiana, dati S&amp;P Global), ultima cedola annunciata: le etichette indicano se stacco e pagamento sono passati o futuri. Cambio da Yahoo (<code>USDEUR=X</code>, come GOOGLEFINANCE("USDEUR")). Le righe con * non hanno trovato dati lì: usano Yahoo e la valuta del fondo, modificabile, con data di pagamento da inserire. Il filtro mese/anno usa la data di pagamento (o di stacco, a scelta): con un filtro attivo le righe senza quella data vengono nascoste.</p>
+            <p class="px-4 pb-3 text-xs text-slate-500 dark:text-slate-400">Lorda = dividendo x1 quota × quote acquistate × cambio. Netta = lorda × (1 − tasse), con l'aliquota della tabella sopra. Dividendo, valuta, data di stacco e di pagamento: stockanalysis.com (Borsa Italiana, dati S&amp;P Global), ultima cedola annunciata: le etichette indicano se stacco e pagamento sono passati o futuri. Cambio da Yahoo (<code>USDEUR=X</code>, come GOOGLEFINANCE("USDEUR")). Le righe con * non hanno trovato dati lì: usano Yahoo e la valuta del fondo, modificabile, con data di pagamento da inserire. Senza filtro la tabella mostra l'<strong>ultima cedola</strong> di ogni ETF. Con un filtro mese/anno attivo mostra invece le cedole di quel periodo ricavate dallo <strong>storico dei dividendi</strong> (Yahoo Finance): per i mesi passati la data di pagamento non è disponibile, quindi vale la data di stacco, e gli importi usano le quote attuali.</p>
+        </section>
+
+        <!-- Storico cedole (griglia anno x mese) -->
+        <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-800 shadow-sm overflow-hidden">
+            <div class="px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center gap-x-2 gap-y-2 bg-slate-50 dark:bg-slate-900">
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300">Storico cedole</span>
+                <span id="hist-count" class="px-2 py-0.5 text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 rounded-full">0</span>
+                <div class="w-full sm:w-auto sm:ml-auto grid grid-cols-6 sm:flex sm:flex-wrap items-center gap-1.5">
+                    <select id="histEtf" onchange="renderHist()" title="ETF" class="col-span-3 min-w-0 w-full sm:w-auto px-2 py-1 text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"></select>
+                    <label class="col-span-3 flex items-center gap-1 px-2 py-1 text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg cursor-pointer select-none" title="Moltiplica per le quote che possiedi e toglie le tasse, come nella tabella Cedole">
+                        <input type="checkbox" id="histNet" onchange="renderHist()" class="accent-indigo-600">
+                        Netto sulle mie quote
+                    </label>
+                    <label class="col-span-3 flex items-center gap-1 text-xs text-slate-600 dark:text-slate-300">Da
+                        <input type="month" id="histFrom" onchange="renderHist()" class="min-w-0 flex-1 px-1.5 py-1 text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </label>
+                    <label class="col-span-3 flex items-center gap-1 text-xs text-slate-600 dark:text-slate-300">A
+                        <input type="month" id="histTo" onchange="renderHist()" class="min-w-0 flex-1 px-1.5 py-1 text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </label>
+                    <button type="button" onclick="setHistRange(12)" class="col-span-2 px-2 py-1.5 sm:py-1 text-xs font-semibold bg-indigo-100 hover:bg-indigo-200 text-indigo-800 dark:bg-indigo-950 dark:hover:bg-indigo-900 dark:text-indigo-300 rounded-lg">12 mesi</button>
+                    <button type="button" onclick="setHistRange(36)" class="col-span-2 px-2 py-1.5 sm:py-1 text-xs font-semibold bg-indigo-100 hover:bg-indigo-200 text-indigo-800 dark:bg-indigo-950 dark:hover:bg-indigo-900 dark:text-indigo-300 rounded-lg">3 anni</button>
+                    <button type="button" onclick="setHistRange(60)" class="col-span-2 px-2 py-1.5 sm:py-1 text-xs font-semibold bg-indigo-100 hover:bg-indigo-200 text-indigo-800 dark:bg-indigo-950 dark:hover:bg-indigo-900 dark:text-indigo-300 rounded-lg">5 anni</button>
+                    <button type="button" onclick="setHistRange(0)" class="col-span-3 px-2 py-1.5 sm:py-1 text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg">Tutto</button>
+                    <button type="button" onclick="reloadHist()" class="col-span-3 px-2 py-1.5 sm:py-1 text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg" title="Riscarica lo storico da Yahoo Finance">Aggiorna</button>
+                </div>
+            </div>
+            <div class="p-2 sm:p-3">
+                <div id="hist-sum" class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600 dark:text-slate-300 px-1 pb-2"></div>
+                <div id="hist-body" class="overflow-x-auto"></div>
+            </div>
+            <p class="px-4 pb-3 text-xs text-slate-500 dark:text-slate-400">Storico dei dividendi per quota da Yahoo Finance (Borsa di Milano), raggruppati per <strong>mese di stacco</strong>. Con la spunta <strong>«Netto sulle mie quote»</strong> gli importi diventano cedola netta: dividendo × <strong>quote che possiedi adesso</strong> × (1 − aliquota 26% o 18%), come nella tabella Cedole. È una stima, non il registro dei tuoi incassi reali. Verde = già staccata, azzurro = mese corrente o futuro, grigio = nessuna cedola. Passa il dito/mouse su una cella per la data esatta.</p>
         </section>
 
         <!-- Legenda / Note Metodologiche -->
@@ -1133,6 +1164,138 @@
             infoReq++;
         }
 
+        // --- STORICO CEDOLE (griglia anno x mese, dati Yahoo Finance .MI, cache locale non sincronizzata) ---
+        const HIST_KEY = 'etf_divhist_v1';
+        const MESI_IT = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
+        let histCache = null, histSel = '';
+        const histState = {}; // ticker -> 'loading' | { err }
+        function loadHistCache() { try { histCache = JSON.parse(localStorage.getItem(HIST_KEY) || '{}') || {}; } catch (e) { histCache = {}; } }
+        function saveHistCache() { try { localStorage.setItem(HIST_KEY, JSON.stringify(histCache)); } catch (e) {} }
+
+        async function fetchDivHistory(ticker) {
+            const sym = encodeURIComponent(ticker.toUpperCase() + '.MI');
+            const json = await proxiedFetch(
+                [`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?range=max&interval=1mo&events=div`, `https://query2.finance.yahoo.com/v8/finance/chart/${sym}?range=max&interval=1mo&events=div`],
+                t => { const j = JSON.parse(t); if (!j?.chart?.result?.[0]) throw new Error('risposta non valida'); return j; });
+            const r = json.chart.result[0];
+            const list = Object.values(r.events?.dividends || {})
+                .filter(x => x && x.amount > 0 && x.date)
+                .sort((a, b) => a.date - b.date)
+                .map(x => [new Date(x.date * 1000).toISOString().slice(0, 10), Number(x.amount)]);
+            return { at: Date.now(), cur: (r.meta && r.meta.currency) || 'EUR', list };
+        }
+
+        async function loadHist(item, force) {
+            const t = item.ticker;
+            if (histState[t] === 'loading') return;
+            const c = histCache[t];
+            if (!force && c && Date.now() - c.at < 3 * 864e5) return;
+            histState[t] = 'loading';
+            renderHist();
+            try {
+                histCache[t] = await fetchDivHistory(t);
+                saveHistCache();
+                delete histState[t];
+            } catch (e) { histState[t] = { err: e.message || 'errore' }; }
+            renderHist();
+            renderCedole();
+        }
+
+        function reloadHist() {
+            const item = portfolio.find(e => e.id === histSel);
+            if (item) loadHist(item, true);
+        }
+
+        function ymNow() { return new Date().toLocaleDateString('sv-SE').slice(0, 7); }
+        function setHistRange(months) {
+            const from = document.getElementById('histFrom'), to = document.getElementById('histTo');
+            to.value = '';
+            if (!months) from.value = '';
+            else {
+                const now = ymNow(), idx = Number(now.slice(0, 4)) * 12 + Number(now.slice(5, 7)) - 1 - (months - 1);
+                from.value = `${Math.floor(idx / 12)}-${String(idx % 12 + 1).padStart(2, '0')}`;
+            }
+            renderHist();
+        }
+        function fmtHistCell(v) { return v >= 0.1 ? fmtNumber(v, 2) : fmtNumber(v, 4); }
+
+        function renderHist() {
+            const body = document.getElementById('hist-body');
+            if (!body) return;
+            if (!histCache) loadHistCache();
+            const sumEl = document.getElementById('hist-sum'), cntEl = document.getElementById('hist-count'), sel = document.getElementById('histEtf');
+            const items = portfolio.filter(i => i.dividend !== 'Accumulo');
+            const prev = sel.value || histSel;
+            sel.innerHTML = items.map(i => `<option value="${i.id}">${escHtml(i.ticker)}${i.shares > 0 ? '' : ' (watchlist)'}</option>`).join('');
+            const item = items.find(i => i.id === prev) || items[0];
+            if (item) sel.value = item.id;
+            histSel = item ? item.id : '';
+            cntEl.textContent = items.length;
+            const msg = t => { sumEl.innerHTML = ''; body.innerHTML = `<p class="py-6 text-center text-xs text-slate-500 dark:text-slate-400">${t}</p>`; };
+            if (!item) { msg('Nessun ETF a cedola in questo portafoglio.'); return; }
+
+            const c = histCache[item.ticker], st = histState[item.ticker];
+            if ((!c || Date.now() - c.at > 3 * 864e5) && !st) setTimeout(() => loadHist(item, false), 0);
+            if (!c) {
+                if (st && st.err) {
+                    sumEl.innerHTML = '';
+                    body.innerHTML = `<div class="py-6 text-center text-xs text-red-600 dark:text-red-400">Storico non disponibile: ${escHtml(String(st.err).slice(0, 160))}<br><button type="button" onclick="reloadHist()" class="mt-2 px-3 py-1.5 font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-lg">Riprova</button></div>`;
+                } else msg('Recupero dello storico da Yahoo Finance…');
+                return;
+            }
+            if (!c.list.length) { msg(`Nessun dividendo trovato per ${escHtml(item.ticker)}.MI su Yahoo Finance.`); return; }
+
+            const taxRate = item.assetType === 'OBBLIGAZIONARIO' ? 0.18 : 0.26;
+            const wanted = document.getElementById('histNet').checked ? 'net' : 'ps';
+            const eff = (wanted !== 'ps' && c.cur === 'EUR' && item.shares > 0) ? wanted : 'ps';
+            const mult = eff === 'ps' ? 1 : item.shares * (eff === 'net' ? 1 - taxRate : 1);
+            const from = document.getElementById('histFrom').value, to = document.getElementById('histTo').value;
+            const byYM = {};
+            c.list.forEach(([d, a]) => {
+                const ym = d.slice(0, 7);
+                if ((from && ym < from) || (to && ym > to)) return;
+                (byYM[ym] = byYM[ym] || { sum: 0, dates: [] });
+                byYM[ym].sum += a; byYM[ym].dates.push([d, a]);
+            });
+            const yms = Object.keys(byYM);
+            const unit = c.cur === 'EUR' ? '€' : c.cur;
+            const last = c.list[c.list.length - 1];
+            const lastTxt = `${fmtDate(last[0])} · ${fmtDiv(last[1])} ${c.cur}`;
+            if (!yms.length) { msg('Nessuna cedola nel periodo selezionato.'); return; }
+
+            const now = ymNow();
+            const y1 = to ? Number(to.slice(0, 4)) : Math.max(Number(c.list[c.list.length - 1][0].slice(0, 4)), Number(now.slice(0, 4)));
+            const y0 = from ? Number(from.slice(0, 4)) : Number(c.list[0][0].slice(0, 4));
+            const th = 'px-1 py-1.5 text-slate-500 dark:text-slate-400 font-medium';
+            const stick = 'sticky left-0 z-10 bg-white dark:bg-slate-900 px-2 py-1 text-slate-500 dark:text-slate-400 font-medium';
+            let tot = 0, n = 0;
+            let rows = '';
+            for (let y = y1; y >= y0; y--) {
+                let yearSum = 0, cells = '';
+                for (let m = 1; m <= 12; m++) {
+                    const ym = `${y}-${String(m).padStart(2, '0')}`, e = byYM[ym];
+                    if (!e) { cells += '<td class="border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 min-w-[44px] px-1 py-1.5">&nbsp;</td>'; continue; }
+                    const v = e.sum * mult;
+                    yearSum += v; n += e.dates.length;
+                    const future = ym >= now;
+                    const tip = e.dates.map(([d, a]) => `Stacco ${fmtDate(d)}: ${fmtDiv(a)} ${c.cur}/quota`).join(' | ');
+                    cells += `<td title="${escHtml(tip)}" class="border border-slate-300 dark:border-slate-600 min-w-[44px] px-1 py-1.5 text-slate-900 dark:text-slate-50 ${future ? 'bg-sky-200 dark:bg-sky-900/70' : 'bg-[#c6e0a0] dark:bg-emerald-900/60'}">${fmtHistCell(v)}</td>`;
+                }
+                tot += yearSum;
+                rows += `<tr><td class="${stick}">${y}</td>${cells}<td class="border border-slate-300 dark:border-slate-600 px-2 py-1.5 font-bold bg-amber-50 dark:bg-slate-800 text-slate-900 dark:text-white">${yearSum > 0 ? fmtNumber(yearSum, 2) : ''}</td></tr>`;
+            }
+            body.innerHTML = `<table class="w-full border-collapse text-center text-[11px] sm:text-xs whitespace-nowrap">
+                <thead><tr><th class="${stick}">Anno</th>${MESI_IT.map(m => `<th class="${th}">${m}</th>`).join('')}<th class="px-2 py-1.5 font-bold">Totale</th></tr></thead>
+                <tbody>${rows}</tbody></table>`;
+
+            const unitTxt = eff === 'ps' ? `${unit} per quota` : (eff === 'net' ? `${unit} netti (${fmtNumber(item.shares, 4)} quote)` : `${unit} lordi (${fmtNumber(item.shares, 4)} quote)`);
+            sumEl.innerHTML = `<span><strong>${escHtml(item.ticker)}</strong> · importi in ${escHtml(unitTxt)}</span>
+                <span>Cedole nel periodo: <strong>${n}</strong></span>
+                <span>Totale periodo: <strong>${fmtNumber(tot, 2)}</strong></span>
+                <span>Ultimo stacco: <strong>${lastTxt}</strong></span>
+                ${wanted !== 'ps' && eff === 'ps' ? `<span class="text-amber-700 dark:text-amber-400">${c.cur !== 'EUR' ? 'Valuta ' + c.cur + ': mostro l\'importo per quota' : 'Servono quote in portafoglio per stimare l\'incasso: mostro l\'importo per quota'}</span>` : ''}`;
+        }
+
         // --- POPUP DI MODIFICA VALORE (evita modifiche accidentali nella tabella) ---
         const VALUE_FIELDS = {
             shares: { label: 'Quote acquistate', hint: 'Numero di quote possedute (0 = solo watchlist).', fmt: v => fmtQty(v) },
@@ -1311,13 +1474,17 @@
             // Filtro mese/anno (gli anni disponibili derivano dalle date presenti)
             const basisEl = document.getElementById('cedoleBasis'), monthEl = document.getElementById('cedoleMonth'), yearEl = document.getElementById('cedoleYear');
             const basis = basisEl.value, fMonth = monthEl.value;
-            const years = [...new Set(allRows.map(i => cedolaFilterDate(i, basis).slice(0, 4)).filter(Boolean))].sort();
+            if (!histCache) loadHistCache();
+            const histYears = [];
+            allRows.forEach(i => { const hc = histCache[i.ticker]; if (hc) hc.list.forEach(([d]) => histYears.push(d.slice(0, 4))); });
+            const years = [...new Set([...allRows.map(i => cedolaFilterDate(i, basis).slice(0, 4)).filter(Boolean), ...histYears])].sort();
             if (yearEl.value !== 'ALL' && !years.includes(yearEl.value)) years.push(yearEl.value);
             const prevYear = yearEl.value;
             yearEl.innerHTML = '<option value="ALL">Tutti gli anni</option>' + years.sort().map(y => `<option value="${y}">${y}</option>`).join('');
             yearEl.value = years.includes(prevYear) ? prevYear : 'ALL';
             const fYear = yearEl.value;
             const filtering = fMonth !== 'ALL' || fYear !== 'ALL';
+            if (filtering && allRows.length) { renderCedoleHistoric(allRows, basis, fMonth, fYear); return; }
             const rows = !filtering ? allRows : allRows.filter(i => {
                 const d = cedolaFilterDate(i, basis);
                 if (!d) return false;
@@ -1376,12 +1543,116 @@
                 <td colspan="2" class="!border-0"></td></tr>`;
         }
 
+        // --- CEDOLE DI PERIODI PASSATI: con un filtro mese/anno attivo si usa lo storico dei dividendi (Yahoo) ---
+        function dayDiff(a, b) { return Math.abs(Date.parse(a) - Date.parse(b)) / 864e5; }
+        function cedolaEvents(allRows) {
+            const evs = [], pending = [], failed = [];
+            allRows.forEach(item => {
+                const c = histCache[item.ticker], st = histState[item.ticker];
+                if (!c && !st) setTimeout(() => loadHist(item, false), 0);
+                if (!c) (st && st.err ? failed : pending).push(item.ticker);
+                const own = [];
+                if (c) c.list.forEach(([d, a]) => { const ev = { item, date: d, amount: a, cur: c.cur, pay: '' }; own.push(ev); evs.push(ev); });
+                const ld = item.lastDiv;
+                if (ld && ld.date) {
+                    const near = own.find(e => dayDiff(e.date, ld.date) <= 4);
+                    if (near) near.pay = item.payDate || '';
+                    else evs.push({ item, date: ld.date, amount: ld.amount, cur: item.divCur || 'EUR', pay: item.payDate || '' });
+                }
+            });
+            return { evs, pending, failed };
+        }
+        function cedolaEventMetrics(ev) {
+            const fx = ev.cur === 'EUR' ? 1 : (fxRates[ev.cur] ? fxRates[ev.cur].rate : null);
+            const taxRate = ev.item.assetType === 'OBBLIGAZIONARIO' ? 0.18 : 0.26;
+            const lorda = (fx !== null && ev.item.shares > 0) ? ev.amount * ev.item.shares * fx : null;
+            return { fx, taxRate, lorda, netta: lorda !== null ? lorda * (1 - taxRate) : null };
+        }
+        function renderCedoleHistoric(allRows, basis, fMonth, fYear) {
+            const body = document.getElementById('cedole-body'), foot = document.getElementById('cedole-foot'), cardsEl = document.getElementById('cedole-cards');
+            if (!histCache) loadHistCache();
+            const { evs, pending, failed } = cedolaEvents(allRows);
+            const key = ev => basis === 'ex' ? ev.date : (ev.pay || ev.date);
+            const sel = evs.filter(ev => { const d = key(ev); return (fYear === 'ALL' || d.slice(0, 4) === fYear) && (fMonth === 'ALL' || d.slice(5, 7) === fMonth); })
+                .sort((a, b) => key(b).localeCompare(key(a)) || a.item.ticker.localeCompare(b.item.ticker));
+            document.getElementById('cedole-count').textContent = sel.length;
+            const todayIso = new Date().toLocaleDateString('sv-SE');
+            const notes = [];
+            if (pending.length) notes.push('Recupero dello storico in corso per: ' + pending.join(', ') + '…');
+            if (failed.length) notes.push('Storico non disponibile per: ' + failed.join(', ') + ' (per questi ETF conta solo l\'ultima cedola).');
+            if (sel.some(ev => !ev.pay)) notes.push('Per le cedole passate la data di pagamento non è disponibile: il filtro usa la data di stacco. Importi calcolati con le quote attuali.');
+            const noteHtml = notes.map(n => escHtml(n)).join('<br>');
+            if (!sel.length) {
+                const t = 'Nessuna cedola nel periodo selezionato' + (pending.length ? ' (storico ancora in caricamento…)' : '') + '.';
+                body.innerHTML = `<tr><td colspan="9" class="py-6 text-slate-500 dark:text-slate-400">${t}</td></tr>`;
+                foot.innerHTML = '';
+                cardsEl.innerHTML = `<div class="py-6 text-center text-xs text-slate-500 dark:text-slate-400">${t}</div>`;
+                return;
+            }
+            let sl = 0, sn = 0, anyFuture = false;
+            const cell = 'py-2 px-3 text-slate-900 dark:text-slate-100';
+            body.innerHTML = sel.map(ev => {
+                const m = cedolaEventMetrics(ev);
+                if (m.lorda !== null) { sl += m.lorda; sn += m.netta; }
+                if (key(ev) > todayIso) anyFuture = true;
+                const na = ev.item.shares > 0 ? 'n/d' : '—';
+                return `<tr class="hover:bg-slate-50/90 dark:hover:bg-slate-800/50">
+                    <td class="py-2 px-3 font-medium bg-sheet-tickerBg dark:bg-sheet-tickerDark">${ev.item.ticker}</td>
+                    <td class="${cell}">${ev.item.dividend}</td>
+                    <td class="${cell} font-semibold">${fmtDiv(ev.amount)} ${ev.cur}</td>
+                    <td class="${cell}">${ev.cur}</td>
+                    <td class="${cell}">${m.fx !== null ? fmtNumber(m.fx, 4) : 'n/d'}</td>
+                    <td class="${cell}">${m.lorda !== null ? fmtCurrency(m.lorda) : na}</td>
+                    <td class="${cell} font-bold text-emerald-600 dark:text-emerald-400" title="Tasse ${Math.round(m.taxRate * 100)}%">${m.netta !== null ? fmtCurrency(m.netta) : na}</td>
+                    <td class="${cell}">${dateCell(ev.date)}</td>
+                    <td class="${cell}">${ev.pay ? dateCell(ev.pay) : '<span title="Data di pagamento non disponibile">n/d</span>'}</td>
+                </tr>`;
+            }).join('');
+            cardsEl.innerHTML = sel.map(ev => {
+                const m = cedolaEventMetrics(ev);
+                const na = ev.item.shares > 0 ? 'n/d' : '—';
+                const inline = iso => iso ? `${fmtDate(iso)} ${dateBadge(iso)}` : 'n/d';
+                return `<div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-xs">
+                    <div class="flex items-center gap-3">
+                        <div class="min-w-0 flex-1">
+                            <div class="font-bold text-sm text-slate-900 dark:text-white">${ev.item.ticker}</div>
+                            <div class="text-[11px] text-slate-500 dark:text-slate-400">${ev.item.dividend} · ${fmtDiv(ev.amount)} ${ev.cur}</div>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <div class="font-bold text-sm text-emerald-600 dark:text-emerald-400">${m.netta !== null ? fmtCurrency(m.netta) : na}</div>
+                            <div class="text-[11px] text-slate-500 dark:text-slate-400">lorda ${m.lorda !== null ? fmtCurrency(m.lorda) : na}</div>
+                        </div>
+                    </div>
+                    <div class="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-slate-600 dark:text-slate-300">
+                        <span class="text-slate-500 dark:text-slate-400">Stacco</span><span>${inline(ev.date)}</span>
+                        <span class="text-slate-500 dark:text-slate-400">Pagamento</span><span>${inline(ev.pay)}</span>
+                    </div>
+                </div>`;
+            }).join('') + `
+                <div class="rounded-xl border-2 border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-xs">
+                    <div class="font-bold text-sm mb-1.5">Totale (filtrato)</div>
+                    <div class="grid grid-cols-2 gap-x-3 gap-y-1">
+                        <span class="text-slate-500 dark:text-slate-400">Cedole lorde</span><span class="text-right font-semibold">${fmtCurrency(sl)}</span>
+                        <span class="text-slate-500 dark:text-slate-400">Cedole nette</span><span class="text-right font-bold text-emerald-600 dark:text-emerald-400">${fmtCurrency(sn)}</span>
+                    </div>
+                    ${anyFuture ? '<div class="mt-1 text-[10px] text-amber-700 dark:text-amber-400">include cedole non ancora pagate</div>' : ''}
+                    ${noteHtml ? `<div class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">${noteHtml}</div>` : ''}
+                </div>`;
+            foot.innerHTML = `<tr class="font-bold">
+                <td colspan="5" class="py-2.5 px-4 text-right !border-0">Totale (filtrato)${anyFuture ? '<br><span class="text-[10px] font-normal text-amber-700 dark:text-amber-400">include cedole non ancora pagate</span>' : ''}</td>
+                <td class="total-box py-2.5 px-3 bg-sheet-totalBg dark:bg-sheet-totalDark">${fmtCurrency(sl)}</td>
+                <td class="total-box py-2.5 px-3 bg-sheet-totalBg dark:bg-sheet-totalDark">${fmtCurrency(sn)}</td>
+                <td colspan="2" class="!border-0"></td></tr>
+                ${noteHtml ? `<tr><td colspan="9" class="py-2 px-4 text-left text-[11px] font-normal text-slate-500 dark:text-slate-400 !border-0">${noteHtml}</td></tr>` : ''}`;
+        }
+
         // --- RENDERING COMPLETO ---
         function renderAll() {
             renderPortfolioBar();
             renderKPIs();
             renderTable();
             renderCedole();
+            renderHist();
         }
 
         function renderKPIs() {
