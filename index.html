@@ -112,6 +112,7 @@
             </div>
 
             <div class="flex items-center gap-2 sm:gap-2.5">
+                <button type="button" id="live-badge" onclick="toggleLive()" class="hidden items-center gap-1.5 px-2 py-1 text-[11px] font-medium rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 cursor-pointer"></button>
                 <button id="btn-fetch-market" onclick="fetchMilanMarketData()" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium text-emerald-800 dark:text-emerald-200 bg-emerald-100 dark:bg-emerald-950/80 hover:bg-emerald-200 dark:hover:bg-emerald-900 border border-emerald-300 dark:border-emerald-800 rounded-xl transition-colors" title="Recupera da internet quotazioni Borsa di Milano (Prezzo, HIGH52, LOW52, Grafico 360gg)">
                     <i id="refresh-icon" data-lucide="globe" class="w-4 h-4"></i>
                     <span id="refresh-label" class="hidden md:inline">Aggiorna Borsa di Milano</span>
@@ -449,6 +450,7 @@
             renderAll();
             lucide.createIcons();
             maybeAutoRefresh();
+            startLive();
             initSync();
         });
 
@@ -2094,6 +2096,7 @@
                 svg.querySelector('#hv-area').addEventListener('pointerdown', move);
                 const upd = item.updatedAt ? new Date(item.updatedAt).toLocaleString('it-IT') : 'n/d';
                 sub.innerHTML = `Chiusure giornaliere reali da Yahoo Finance (${item.ticker}.MI), ${h.length} sedute, ${ch >= 0 ? '+' : ''}${fmtNumber(ch, 1)}% nel periodo. Aggiornato il ${upd}.<br>
+                    ${item.priceSrc === 'borsa' ? `Prezzo attuale: Borsa Italiana, ultimo scambio ${item.priceAt ? escHtml(item.priceAt.split(' ').map((x, i) => i === 0 ? fmtDate(x) : x).join(' ')) : 'n/d'}.` : 'Prezzo attuale: Yahoo Finance, può essere in ritardo' + (item.priceErr ? ` (Borsa Italiana non letta: ${escHtml(item.priceErr)})` : '') + '.'}<br>
                     Verifica: <a class="underline text-blue-600" target="_blank" rel="noopener" href="https://finance.yahoo.com/quote/${encodeURIComponent(item.ticker)}.MI/chart">Yahoo</a> ·
                     <a class="underline text-blue-600" target="_blank" rel="noopener" href="https://www.justetf.com/it/etf-profile.html?isin=${encodeURIComponent(item.isin)}">justETF</a>`;
             }
@@ -2262,6 +2265,97 @@
             };
         }
 
+        // --- PREZZO IN TEMPO REALE da Borsa Italiana (stesso servizio usato dal grafico del sito; Yahoo resta la riserva) ---
+        async function fetchBorsaPrice(isin) {
+            if (!/^[A-Z]{2}[A-Z0-9]{9}\d$/.test(isin || '')) throw new Error('ISIN mancante o non valido');
+            const url = `https://grafici.borsaitaliana.it/api/instruments/${isin},XMIL,ISIN/intraday?resolution=1MN`;
+            return proxiedFetch([url], t => {
+                const j = JSON.parse(t);
+                const pts = (j && j.intradayPoint) || [];
+                const last = pts[pts.length - 1];
+                const price = last && Number(last.endPx);
+                if (!last || !isFinite(price) || price <= 0) throw new Error('nessuno scambio nella risposta');
+                if (j.currency && j.currency !== 'EUR') throw new Error('valuta non EUR: ' + j.currency);
+                const d = String(last.time || '').slice(0, 8), tm = last.endTime || String(last.time || '').slice(9);
+                const day = /^\d{8}$/.test(d) ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}` : '';
+                const prev = Number(last.previousClosingPx);
+                return { price, prevClose: isFinite(prev) && prev > 0 ? prev : null, day, time: /^\d\d:\d\d(:\d\d)?$/.test(tm) ? tm : '', rt: j.sessionQuality === 'RT' };
+            });
+        }
+
+        // --- PREZZI IN TEMPO REALE (Borsa Italiana): ogni 60 s, solo a pagina visibile e a mercato aperto ---
+        const LIVE_MS = 60000;
+        const LIVE_KEY = 'etf_live_on';
+        let liveBusy = false, liveTimer = null, liveFails = 0, liveLastOk = '';
+        function liveEnabled() { try { return localStorage.getItem(LIVE_KEY) === '1'; } catch (e) { return false; } }
+        function toggleLive() {
+            const on = !liveEnabled();
+            try { localStorage.setItem(LIVE_KEY, on ? '1' : '0'); } catch (e) {}
+            showToast(on ? 'Aggiornamento live attivato (ogni 60 s a mercato aperto)' : 'Aggiornamento live disattivato: usa «Aggiorna» per i prezzi');
+            liveTick();
+        }
+        function marketOpenNow() {
+            const p = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date());
+            const g = t => (p.find(x => x.type === t) || {}).value;
+            if (['Sat', 'Sun'].includes(g('weekday'))) return false;
+            const m = Number(g('hour')) * 60 + Number(g('minute'));
+            return m >= 8 * 60 + 55 && m <= 17 * 60 + 40;
+        }
+        function setLiveBadge(state, text) {
+            const el = document.getElementById('live-badge');
+            if (!el) return;
+            const dot = { live: 'bg-emerald-500 animate-pulse', warn: 'bg-amber-500', off: 'bg-slate-400' }[state] || 'bg-slate-400';
+            el.className = 'inline-flex items-center gap-1.5 px-2 py-1 text-[11px] font-medium rounded-full cursor-pointer ' + (state === 'live'
+                ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300'
+                : state === 'warn' ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300');
+            el.title = text + (liveEnabled() ? ' (tocca per disattivare)' : '');
+            el.innerHTML = `<span class="w-2 h-2 rounded-full ${dot}"></span><span class="hidden sm:inline">${escHtml(text)}</span>`;
+        }
+        async function liveTick() {
+            if (!liveEnabled()) { setLiveBadge('off', 'Live spento: tocca per attivare'); return; }
+            if (liveBusy || document.visibilityState === 'hidden') return;
+            const btn = document.getElementById('btn-fetch-market');
+            if (btn && btn.disabled) return; // aggiornamento completo in corso
+            const pf = portfolio;
+            const items = pf.filter(i => /^[A-Z]{2}[A-Z0-9]{9}\d$/.test(i.isin || '') && i.history && i.history.length);
+            if (!items.length || !getProxyPrefix()) { setLiveBadge('off', 'Aggiornamento live non attivo'); return; }
+            if (!marketOpenNow()) { setLiveBadge('off', 'Mercato chiuso' + (liveLastOk ? ' · ultimo prezzo ' + liveLastOk : '')); return; }
+            liveBusy = true;
+            try {
+                const res = await Promise.allSettled(items.map(i => fetchBorsaPrice(i.isin)));
+                let ok = 0;
+                res.forEach((r, k) => {
+                    if (r.status !== 'fulfilled') return;
+                    const it = items[k], b = r.value;
+                    it.currPrice = b.price;
+                    if (b.prevClose) it.change = b.price - b.prevClose;
+                    it.high52 = Math.max(it.high52 || 0, b.price);
+                    it.low52 = it.low52 ? Math.min(it.low52, b.price) : b.price;
+                    it.priceSrc = 'borsa'; it.priceAt = b.day ? `${b.day} ${b.time}`.trim() : ''; it.priceErr = null;
+                    ok++;
+                });
+                if (ok) {
+                    liveFails = 0;
+                    liveLastOk = new Date().toLocaleTimeString('it-IT');
+                    if (portfolio === pf) { renderKPIs(); renderTable(); if (window.lucide) lucide.createIcons(); }
+                    setLiveBadge('live', `Live ${liveLastOk}` + (ok < items.length ? ` (${ok}/${items.length})` : ''));
+                } else {
+                    liveFails++;
+                    setLiveBadge('warn', 'Prezzi live non raggiunti: uso l\'ultimo dato');
+                }
+            } catch (e) {
+                liveFails++;
+                setLiveBadge('warn', 'Prezzi live non raggiunti');
+            } finally { liveBusy = false; }
+        }
+        function startLive() {
+            if (liveTimer) return;
+            liveTimer = setInterval(liveTick, LIVE_MS);
+            document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') liveTick(); });
+            setTimeout(liveTick, 1500);
+        }
+
         async function fetchMilanMarketData() {
             if (portfolio.length === 0) return;
             const pf = portfolio; // il portafoglio attivo al momento del clic, anche se poi se ne cambia
@@ -2287,6 +2381,30 @@
                     console.error(item.ticker, res.reason);
                 }
             });
+            // Prezzo ufficiale da Borsa Italiana per gli ETF letti correttamente da Yahoo
+            const okItems = pf.filter((it, i) => results[i].status === 'fulfilled');
+            const borsa = await Promise.allSettled(okItems.map(it => fetchBorsaPrice(it.isin)));
+            let borsaOk = 0, borsaErr = '';
+            borsa.forEach((r, k) => {
+                const it = okItems[k];
+                if (r.status === 'fulfilled') {
+                    const b = r.value;
+                    it.currPrice = b.price;
+                    if (b.prevClose) it.change = b.price - b.prevClose;
+                    it.high52 = Math.max(it.high52 || 0, b.price);
+                    it.low52 = it.low52 ? Math.min(it.low52, b.price) : b.price;
+                    it.priceSrc = 'borsa';
+                    it.priceAt = b.day ? `${b.day} ${b.time}`.trim() : '';
+                    it.priceErr = null;
+                    borsaOk++;
+                } else {
+                    it.priceSrc = 'yahoo';
+                    it.priceAt = '';
+                    it.priceErr = String((r.reason && r.reason.message) || 'errore').slice(0, 120);
+                    borsaErr = borsaErr || it.priceErr;
+                    console.warn('Borsa Italiana', it.ticker, r.reason);
+                }
+            });
             const need = pf.filter(i => !i.metaOk || !i.metaAt || i.fundCur === undefined || Date.now() - i.metaAt > 7 * 864e5);
             const metaRes = await Promise.allSettled(need.map(async i => applyJustEtf(i, await fetchJustEtf(i.isin))));
             const metaOkCount = metaRes.filter(r => r.status === 'fulfilled').length;
@@ -2299,7 +2417,8 @@
             const firstErr = (pf.find(i => i.err) || {}).err;
             showToast(failed.length
                 ? `Aggiornati ${ok}/${pf.length}. Non riusciti: ${failed.join(', ')}. Motivo: ${firstErr}`
-                : `Aggiornati ${ok}/${pf.length} ETF` + (metaFail ? `; TER/cedola non letti da justETF per ${metaFail}` : ' (prezzi, grafici, TER)'));
+                : `Aggiornati ${ok}/${pf.length} ETF` + (metaFail ? `; TER/cedola non letti da justETF per ${metaFail}` : ' (prezzi, grafici, TER)')
+                    + (okItems.length && borsaOk < okItems.length ? `. Prezzo di Borsa Italiana non letto per ${okItems.length - borsaOk} ETF (uso Yahoo): ${borsaErr}` : ''));
             if (btn) btn.disabled = false;
             if (label) label.textContent = originalLabel || 'Aggiorna Borsa di Milano';
         }
