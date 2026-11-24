@@ -683,6 +683,8 @@
         const SYNC_UID_KEY = 'etf_sync_uid';
         const FB_SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
         let fbAuth = null, fbDb = null, syncUser = null, syncUnsub = null, syncTimer = null, syncApplying = false;
+        // Risolta alla prima risposta di Firebase sullo stato di accesso: le richieste al proxy aspettano questo momento
+        let authReadyResolve; const authReady = new Promise(r => { authReadyResolve = r; });
 
         function syncEnabled() { return !!(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId); }
         function loadScript(src) {
@@ -710,7 +712,7 @@
         }
 
         async function initSync() {
-            if (!syncEnabled()) return;
+            if (!syncEnabled()) { authReadyResolve(); return; }
             setSyncUi('loading');
             try {
                 await loadScript(FB_SDK + 'firebase-app-compat.js');
@@ -719,7 +721,7 @@
                 fbAuth = firebase.auth(); fbDb = firebase.firestore();
                 fbAuth.getRedirectResult().catch(e => showToast('Accesso non riuscito: ' + e.message));
                 fbAuth.onAuthStateChanged(onAuthChange);
-            } catch (e) { setSyncUi('error', e.message); }
+            } catch (e) { setSyncUi('error', e.message); authReadyResolve(); }
         }
 
         async function syncButtonClick() {
@@ -796,6 +798,7 @@
 
         async function onAuthChange(user) {
             syncUser = user;
+            authReadyResolve();
             if (syncUnsub) { syncUnsub(); syncUnsub = null; }
             if (!user) { setSyncUi('out'); return; }
             setSyncUi('syncing');
@@ -2209,19 +2212,31 @@
             if (v) fetchMilanMarketData();
         }
 
+        // Il Worker personale accetta solo richieste con il token di accesso Google (Firebase) dell'account autorizzato.
+        // Il token viene inviato SOLO al proxy predefinito, mai a un altro indirizzo o ai proxy pubblici.
+        async function getProxyAuthHeaders(pre) {
+            if (!pre || !pre.startsWith(DEFAULT_PROXY.replace(/\/+$/, ''))) return {};
+            await Promise.race([authReady, new Promise(r => setTimeout(r, 8000))]);
+            const u = fbAuth && fbAuth.currentUser;
+            if (!u) throw new Error('accesso richiesto: accedi con Google (account autorizzato) per aggiornare i dati');
+            return { Authorization: 'Bearer ' + await u.getIdToken() };
+        }
+
         async function proxiedFetch(urls, parse) {
             const errs = [];
             const custom = getProxyPrefix();
             const prefixes = custom ? [custom] : PROXIES;
             for (const pre of prefixes) {
+                const headers = await getProxyAuthHeaders(pre); // se manca l'accesso, si ferma qui con un messaggio chiaro
                 for (const url of urls) {
                     try {
                         let timer;
                         const res = await Promise.race([
-                            fetch(pre + (pre.includes('codetabs') ? url : encodeURIComponent(url))),
+                            fetch(pre + (pre.includes('codetabs') ? url : encodeURIComponent(url)), { headers }),
                             new Promise((_, rej) => { timer = setTimeout(() => rej(new Error('timeout')), 8000); })
                         ]);
                         clearTimeout(timer);
+                        if (res.status === 401 || res.status === 403) throw new Error('accesso negato dal proxy: usa l\'account Google autorizzato');
                         if (!res.ok) throw new Error('HTTP ' + res.status);
                         return parse(await res.text());
                     } catch (e) {
@@ -2310,7 +2325,7 @@
                 : state === 'warn' ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300'
                 : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300');
             el.title = text + (liveEnabled() ? ' (tocca per disattivare)' : '');
-            el.innerHTML = `<span class="w-2 h-2 rounded-full ${dot}"></span><span class="hidden sm:inline">${escHtml(text)}</span>`;
+            el.innerHTML = `<span class="w-2 h-2 rounded-full ${dot}"></span><span class="hidden sm:inline max-w-[20rem] truncate">${escHtml(text)}</span>`;
         }
         async function liveTick() {
             if (!liveEnabled()) { setLiveBadge('off', 'Live spento: tocca per attivare'); return; }
@@ -2324,9 +2339,9 @@
             liveBusy = true;
             try {
                 const res = await Promise.allSettled(items.map(i => fetchBorsaPrice(i.isin)));
-                let ok = 0;
+                let ok = 0, firstErr = '';
                 res.forEach((r, k) => {
-                    if (r.status !== 'fulfilled') return;
+                    if (r.status !== 'fulfilled') { firstErr = firstErr || String((r.reason && r.reason.message) || 'errore'); return; }
                     const it = items[k], b = r.value;
                     it.currPrice = b.price;
                     if (b.prevClose) it.change = b.price - b.prevClose;
@@ -2342,7 +2357,8 @@
                     setLiveBadge('live', `Live ${liveLastOk}` + (ok < items.length ? ` (${ok}/${items.length})` : ''));
                 } else {
                     liveFails++;
-                    setLiveBadge('warn', 'Prezzi live non raggiunti: uso l\'ultimo dato');
+                    console.warn('Live Borsa Italiana:', firstErr);
+                    setLiveBadge('warn', 'Live non raggiunto: ' + firstErr);
                 }
             } catch (e) {
                 liveFails++;
