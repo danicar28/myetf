@@ -2376,6 +2376,22 @@
                 const y = v => pt + (1 - (v - min) / rng) * (H - pt - pb);
                 const pts = h.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
                 const ch = (h[h.length - 1] - h[0]) / h[0] * 100;
+                // Marker delle operazioni: sulla prima seduta con data >= quella dell'operazione (le operazioni fuori dal periodo non si mostrano)
+                const marks = [];
+                let before = 0;
+                (item.trades || []).forEach(t => {
+                    if (!t.date) return;
+                    if (t.date < d[0]) { before++; return; }
+                    let i = d.findIndex(dd => dd >= t.date);
+                    if (i < 0) { if (Date.parse(t.date) - Date.parse(d[d.length - 1]) > 7 * 864e5) return; i = d.length - 1; }
+                    marks.push({ i, t });
+                });
+                const markSvg = marks.map(({ i, t }) => {
+                    const cx = x(i), cy = y(h[i]);
+                    return t.type === 'buy'
+                        ? `<polygon points="${(cx - 3.5).toFixed(1)},${(cy + 7).toFixed(1)} ${(cx + 3.5).toFixed(1)},${(cy + 7).toFixed(1)} ${cx.toFixed(1)},${(cy + 1.5).toFixed(1)}" fill="#16a34a" stroke="#fff" stroke-width=".6" pointer-events="none"/>`
+                        : `<polygon points="${(cx - 3.5).toFixed(1)},${(cy - 7).toFixed(1)} ${(cx + 3.5).toFixed(1)},${(cy - 7).toFixed(1)} ${cx.toFixed(1)},${(cy - 1.5).toFixed(1)}" fill="#dc2626" stroke="#fff" stroke-width=".6" pointer-events="none"/>`;
+                }).join('');
                 body.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="100%" class="text-slate-500 dark:text-slate-400 select-none" style="overflow:visible">
                     <line x1="${pl}" x2="${W - pr}" y1="${y(max)}" y2="${y(max)}" stroke="currentColor" stroke-opacity=".25" stroke-dasharray="3"/>
                     <line x1="${pl}" x2="${W - pr}" y1="${y(min)}" y2="${y(min)}" stroke="currentColor" stroke-opacity=".25" stroke-dasharray="3"/>
@@ -2384,6 +2400,7 @@
                     <text x="${pl}" y="${H - 5}" font-size="10" fill="currentColor">${fmtDate(d[0])}</text>
                     <text x="${W - pr}" y="${H - 5}" font-size="10" text-anchor="end" fill="currentColor">${fmtDate(d[d.length - 1])}</text>
                     <polyline fill="none" stroke="#1155cc" stroke-width="1.6" stroke-linejoin="round" points="${pts}"/>
+                    ${markSvg}
                     <line id="hv-line" y1="${pt}" y2="${H - pb}" stroke="currentColor" stroke-opacity=".5" style="display:none"/>
                     <circle id="hv-dot" r="3.5" fill="#1155cc" style="display:none"/>
                     <text id="hv-txt" x="${W / 2}" y="${pt + 2}" font-size="11" text-anchor="middle" fill="currentColor" font-weight="600"></text>
@@ -2398,12 +2415,16 @@
                     const ln = svg.querySelector('#hv-line'), dot = svg.querySelector('#hv-dot');
                     ln.setAttribute('x1', x(i)); ln.setAttribute('x2', x(i)); ln.style.display = '';
                     dot.setAttribute('cx', x(i)); dot.setAttribute('cy', y(h[i])); dot.style.display = '';
-                    svg.querySelector('#hv-txt').textContent = `${fmtDate(d[i])}: ${fmtPrice(h[i])} €`;
+                    // se il cursore è vicino a un marker, mostra anche l'operazione
+                    const near = marks.filter(m => Math.abs(x(m.i) - x(i)) <= 4);
+                    const opTxt = near.map(m => `${m.t.type === 'buy' ? '▲ Acquisto' : '▼ Vendita'} ${fmtQty(m.t.qty)} × ${fmtPrice(m.t.price)} €`).join(' · ');
+                    svg.querySelector('#hv-txt').textContent = `${fmtDate(d[i])}: ${fmtPrice(h[i])} €` + (opTxt ? '  ' + opTxt : '');
                 };
                 svg.querySelector('#hv-area').addEventListener('pointermove', move);
                 svg.querySelector('#hv-area').addEventListener('pointerdown', move);
                 const upd = item.updatedAt ? new Date(item.updatedAt).toLocaleString('it-IT') : 'n/d';
                 sub.innerHTML = `Chiusure giornaliere reali da Yahoo Finance (${item.ticker}.MI), ${h.length} sedute, ${ch >= 0 ? '+' : ''}${fmtNumber(ch, 1)}% nel periodo. Aggiornato il ${upd}.<br>
+                    ${marks.length || before ? `<span class="text-emerald-600">▲</span> acquisti, <span class="text-red-600">▼</span> vendite${before ? ` (${before} operazioni precedenti a questo periodo non mostrate)` : ''}.<br>` : ''}
                     ${item.priceSrc === 'borsa' ? `Prezzo attuale: Borsa Italiana, ultimo scambio ${item.priceAt ? escHtml(item.priceAt.split(' ').map((x, i) => i === 0 ? fmtDate(x) : x).join(' ')) : 'n/d'}.` : 'Prezzo attuale: Yahoo Finance, può essere in ritardo' + (item.priceErr ? ` (Borsa Italiana non letta: ${escHtml(item.priceErr)})` : '') + '.'}<br>
                     Verifica: <a class="underline text-blue-600" target="_blank" rel="noopener" href="https://finance.yahoo.com/quote/${encodeURIComponent(item.ticker)}.MI/chart">Yahoo</a> ·
                     <a class="underline text-blue-600" target="_blank" rel="noopener" href="https://www.justetf.com/it/etf-profile.html?isin=${encodeURIComponent(item.isin)}">justETF</a>`;
