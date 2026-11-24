@@ -2340,8 +2340,16 @@
             try {
                 const res = await Promise.allSettled(items.map(i => fetchBorsaPrice(i.isin)));
                 let ok = 0, firstErr = '';
+                const noTrade = [], failed = [];
                 res.forEach((r, k) => {
-                    if (r.status !== 'fulfilled') { firstErr = firstErr || String((r.reason && r.reason.message) || 'errore'); return; }
+                    if (r.status !== 'fulfilled') {
+                        const msg = String((r.reason && r.reason.message) || 'errore');
+                        // lista vuota = nessuno scambio finora: non è un errore, il prezzo resta quello di prima
+                        if (/nessuno scambio/.test(msg)) noTrade.push(items[k].ticker);
+                        else failed.push(`${items[k].ticker}: ${msg.slice(0, 80)}`);
+                        firstErr = firstErr || msg;
+                        return;
+                    }
                     const it = items[k], b = r.value;
                     it.currPrice = b.price;
                     if (b.prevClose) it.change = b.price - b.prevClose;
@@ -2350,11 +2358,15 @@
                     it.priceSrc = 'borsa'; it.priceAt = b.day ? `${b.day} ${b.time}`.trim() : ''; it.priceErr = null;
                     ok++;
                 });
-                if (ok) {
+                if (ok || noTrade.length) {
                     liveFails = 0;
                     liveLastOk = new Date().toLocaleTimeString('it-IT');
-                    if (portfolio === pf) { renderKPIs(); renderTable(); if (window.lucide) lucide.createIcons(); }
-                    setLiveBadge('live', `Live ${liveLastOk}` + (ok < items.length ? ` (${ok}/${items.length})` : ''));
+                    if (ok && portfolio === pf) { renderKPIs(); renderTable(); if (window.lucide) lucide.createIcons(); }
+                    if (failed.length) console.warn('Live Borsa Italiana, non riusciti:', failed);
+                    setLiveBadge(failed.length ? 'warn' : 'live',
+                        `Live ${liveLastOk}` + (noTrade.length ? ` · ${noTrade.length} senza scambi oggi` : '') + (failed.length ? ` · ${failed.length} non letti` : ''));
+                    const el = document.getElementById('live-badge');
+                    if (el) el.title = `Aggiornati ${ok}/${items.length}` + (noTrade.length ? `\nSenza scambi oggi (prezzo invariato): ${noTrade.join(', ')}` : '') + (failed.length ? `\nNon letti:\n${failed.join('\n')}` : '') + '\n(tocca per disattivare)';
                 } else {
                     liveFails++;
                     console.warn('Live Borsa Italiana:', firstErr);
