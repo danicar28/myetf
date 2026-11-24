@@ -305,7 +305,7 @@
                 </table>
             </div>
             <div id="cedole-cards" class="card-view p-2 space-y-2"></div>
-            <p class="px-4 pb-3 text-xs text-slate-500 dark:text-slate-400">Lorda = dividendo x1 quota × quote acquistate × cambio. Netta = lorda × (1 − tasse), con l'aliquota della tabella sopra. Dividendo, valuta, data di stacco e di pagamento: stockanalysis.com (Borsa Italiana, dati S&amp;P Global), ultima cedola annunciata: le etichette indicano se stacco e pagamento sono passati o futuri. Cambio da Yahoo (<code>USDEUR=X</code>, come GOOGLEFINANCE("USDEUR")). Le righe con * non hanno trovato dati lì: usano Yahoo e la valuta del fondo, modificabile, con data di pagamento da inserire. Senza filtro la tabella mostra l'<strong>ultima cedola</strong> di ogni ETF. Con un filtro mese/anno attivo mostra invece le cedole di quel periodo ricavate dallo <strong>storico dei dividendi</strong> (Yahoo Finance): per i mesi passati la data di pagamento non è disponibile, quindi vale la data di stacco, e gli importi usano le quote attuali.</p>
+            <p class="px-4 pb-3 text-xs text-slate-500 dark:text-slate-400">Lorda = dividendo x1 quota × <strong>quote possedute alla data di stacco</strong> (ricavate dalle Operazioni) × cambio. Netta = lorda × (1 − tasse), con l'aliquota della tabella sopra. Dividendo, valuta, data di stacco e di pagamento: stockanalysis.com (Borsa Italiana, dati S&amp;P Global), ultima cedola annunciata: le etichette indicano se stacco e pagamento sono passati o futuri. Cambio da Yahoo (<code>USDEUR=X</code>, come GOOGLEFINANCE("USDEUR")). Le righe con * non hanno trovato dati lì: usano Yahoo e la valuta del fondo, modificabile, con data di pagamento da inserire. Senza filtro la tabella mostra l'<strong>ultima cedola</strong> di ogni ETF. Con un filtro mese/anno attivo mostra invece le cedole di quel periodo ricavate dallo <strong>storico dei dividendi</strong> (Yahoo Finance): per i mesi passati la data di pagamento non è disponibile, quindi vale la data di stacco, e gli importi usano le quote che possedevi in quella data.</p>
         </section>
 
         <!-- Storico cedole (griglia anno x mese) -->
@@ -336,7 +336,33 @@
                 <div id="hist-sum" class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600 dark:text-slate-300 px-1 pb-2"></div>
                 <div id="hist-body" class="overflow-x-auto"></div>
             </div>
-            <p class="px-4 pb-3 text-xs text-slate-500 dark:text-slate-400">Storico dei dividendi per quota da Yahoo Finance (Borsa di Milano), raggruppati per <strong>mese di stacco</strong>. Con la spunta <strong>«Netto sulle mie quote»</strong> gli importi diventano cedola netta: dividendo × <strong>quote che possiedi adesso</strong> × (1 − aliquota 26% o 18%), come nella tabella Cedole. È una stima, non il registro dei tuoi incassi reali. Verde = già staccata, azzurro = mese corrente o futuro, grigio = nessuna cedola. Passa il dito/mouse su una cella per la data esatta.</p>
+            <p class="px-4 pb-3 text-xs text-slate-500 dark:text-slate-400">Storico dei dividendi per quota da Yahoo Finance (Borsa di Milano), raggruppati per <strong>mese di stacco</strong>. Con la spunta <strong>«Netto sulle mie quote»</strong> gli importi diventano cedola netta: dividendo × <strong>quote possedute alla data di stacco</strong> (dalle Operazioni) × (1 − aliquota 26% o 18%), come nella tabella Cedole. Se non possedevi quote in quella data, la cedola non compare. Resta una stima: non tiene conto di ritardi o differenze di pagamento. Verde = già staccata, azzurro = mese corrente o futuro, grigio = nessuna cedola. Passa il dito/mouse su una cella per la data esatta.</p>
+        </section>
+
+        <!-- Storico operazioni (tutti gli ETF del portafoglio) -->
+        <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-800 shadow-sm overflow-hidden">
+            <div class="px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center gap-x-2 gap-y-2 bg-slate-50 dark:bg-slate-900">
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300">Storico operazioni</span>
+                <span id="ops-count" class="px-2 py-0.5 text-xs font-bold bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 rounded-full">0</span>
+                <div class="w-full sm:w-auto sm:ml-auto grid grid-cols-6 sm:flex sm:flex-wrap items-center gap-1.5">
+                    <select id="opsEtf" onchange="renderOps()" class="col-span-3 min-w-0 w-full sm:w-auto px-2 py-1 text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"></select>
+                    <select id="opsType" onchange="renderOps()" class="col-span-3 min-w-0 w-full sm:w-auto px-2 py-1 text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="ALL">Acquisti e vendite</option><option value="buy">Solo acquisti</option><option value="sell">Solo vendite</option>
+                    </select>
+                    <label class="col-span-3 flex items-center gap-1 text-xs text-slate-600 dark:text-slate-300">Da
+                        <input type="date" id="opsFrom" onchange="renderOps()" class="min-w-0 flex-1 px-1.5 py-1 text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"></label>
+                    <label class="col-span-3 flex items-center gap-1 text-xs text-slate-600 dark:text-slate-300">A
+                        <input type="date" id="opsTo" onchange="renderOps()" class="min-w-0 flex-1 px-1.5 py-1 text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"></label>
+                    <button type="button" onclick="resetOpsFilter()" class="col-span-6 px-2 py-1.5 sm:py-1 text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg">Reset filtri</button>
+                </div>
+            </div>
+            <div class="p-2 sm:p-3 space-y-3">
+                <div id="ops-sum" class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600 dark:text-slate-300 px-1"></div>
+                <div id="ops-body" class="overflow-x-auto"></div>
+                <h4 class="px-1 pt-2 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Riepilogo per ETF (posizione attuale)</h4>
+                <div id="ops-recap" class="overflow-x-auto"></div>
+            </div>
+            <p class="px-4 pb-3 text-xs text-slate-500 dark:text-slate-400">Quote e valore d'acquisto di ogni ETF derivano dalle operazioni, con il <strong>costo medio ponderato</strong>: le commissioni di acquisto si sommano al costo, una vendita riduce le quote senza cambiare il prezzo medio. «Saldo iniziale» è la posizione che avevi già inserito, senza data. Clicca su una riga per modificare le operazioni di quell'ETF. La plusvalenza realizzata è lorda (prima delle tasse).</p>
         </section>
 
         <!-- Legenda / Note Metodologiche -->
@@ -364,6 +390,7 @@
                     <div><label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Quote acquistate (0 = watchlist) *</label><input type="number" step="0.0001" min="0" id="f-shares" required placeholder="100" class="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"></div>
                     <div><label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Valore d'acquisto (€ per quota)</label><input type="number" step="0.001" min="0" id="f-buyPrice" placeholder="66.82" class="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"></div>
                 </div>
+                <p id="f-pos-hint" class="hidden text-xs text-sky-700 dark:text-sky-300">Quote e valore d'acquisto si calcolano dalle <strong>Operazioni</strong>: clicca su «Quote» nella tabella, oppure sul tasto Operazioni.</p>
                 <p class="text-xs text-slate-500 dark:text-slate-400">Prezzo, High52, Low52, grafico (Yahoo Finance) e TER, cedola, aliquota (justETF) vengono recuperati automaticamente al salvataggio.</p>
                 <div class="pt-4 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3">
                     <button type="button" onclick="closeModal()" class="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl">Annulla</button>
@@ -404,6 +431,43 @@
                 </button>
             </div>
             <div id="info-modal-body" class="p-5 overflow-y-auto space-y-4 text-sm text-slate-800 dark:text-slate-200"></div>
+        </div>
+    </div>
+
+    <!-- Modale operazioni (storico acquisti/vendite di un ETF) -->
+    <div id="trades-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/60 backdrop-blur-sm p-3 sm:p-4">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl w-full max-w-2xl max-h-[92vh] flex flex-col">
+            <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <h3 id="trades-title" class="text-base font-bold text-slate-900 dark:text-white break-words"></h3>
+                    <p id="trades-sub" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5"></p>
+                </div>
+                <button onclick="closeTradesModal()" class="p-1.5 shrink-0 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800" title="Chiudi">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="p-4 sm:p-5 overflow-y-auto space-y-4 text-sm text-slate-800 dark:text-slate-200">
+                <dl id="trades-summary" class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 text-xs"></dl>
+                <form id="trades-form" onsubmit="saveTrade(event)" class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950/60 p-3 grid grid-cols-6 gap-2 text-xs">
+                    <input type="hidden" id="t-edit-id">
+                    <div class="col-span-6 font-semibold text-slate-700 dark:text-slate-300" id="t-form-title">Nuova operazione</div>
+                    <label class="col-span-3 sm:col-span-2"><span class="block mb-1 text-slate-600 dark:text-slate-400">Tipo</span>
+                        <select id="t-type" class="w-full px-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"><option value="buy">Acquisto</option><option value="sell">Vendita</option></select></label>
+                    <label class="col-span-3 sm:col-span-2"><span class="block mb-1 text-slate-600 dark:text-slate-400">Data</span>
+                        <input type="date" id="t-date" class="w-full min-w-0 px-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"></label>
+                    <label class="col-span-2 sm:col-span-2"><span class="block mb-1 text-slate-600 dark:text-slate-400">Quote</span>
+                        <input type="text" inputmode="decimal" autocomplete="off" id="t-qty" placeholder="10" class="w-full min-w-0 px-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"></label>
+                    <label class="col-span-2 sm:col-span-3"><span class="block mb-1 text-slate-600 dark:text-slate-400">Prezzo (€ per quota)</span>
+                        <input type="text" inputmode="decimal" autocomplete="off" id="t-price" placeholder="66,82" class="w-full min-w-0 px-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"></label>
+                    <label class="col-span-2 sm:col-span-3"><span class="block mb-1 text-slate-600 dark:text-slate-400">Commissione (€, facoltativa)</span>
+                        <input type="text" inputmode="decimal" autocomplete="off" id="t-fee" placeholder="0" class="w-full min-w-0 px-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"></label>
+                    <div class="col-span-6 flex justify-end gap-2 pt-1">
+                        <button type="button" id="t-cancel" onclick="resetTradeForm()" class="hidden px-3 py-1.5 font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg">Annulla modifica</button>
+                        <button type="submit" id="t-submit" class="px-4 py-1.5 font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm">Aggiungi</button>
+                    </div>
+                </form>
+                <div id="trades-list" class="overflow-x-auto"></div>
+            </div>
         </div>
     </div>
 
@@ -526,6 +590,7 @@
                     ${spark ? `<div class="mt-2 flex justify-center cursor-pointer" onclick="openChartModal('${item.id}')" title="Clicca per ingrandire">${spark}</div>` : ''}
                     <div class="mt-3 flex items-center gap-2">
                         <button onclick="editETF('${item.id}')" class="flex-1 px-3 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg">Modifica</button>
+                        <button onclick="openTradesModal('${item.id}')" class="flex-1 px-3 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg">Operazioni</button>
                         <button onclick="openInfoModal('${item.id}')" class="flex-1 px-3 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg">Info</button>
                         <a href="https://www.justetf.com/it/etf-profile.html?isin=${encodeURIComponent(item.isin)}" target="_blank" rel="noopener noreferrer" class="flex-1 px-3 py-2 text-xs font-semibold text-center text-blue-700 dark:text-blue-300 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg">justETF</a>
                         <button onclick="confirmDeleteETF('${item.id}')" class="px-3 py-2 text-xs font-semibold text-red-700 dark:text-red-300 bg-red-50 hover:bg-red-100 dark:bg-red-950/60 dark:hover:bg-red-950 rounded-lg">Elimina</button>
@@ -537,7 +602,7 @@
         function buildCedolaCard(item) {
             const m = cedolaMetrics(item);
             const auto = item.divSrc === 'stockanalysis';
-            const na = item.shares > 0 ? 'n/d' : '—';
+            const na = m.shares > 0 ? 'n/d' : '—';
             const ex = item.lastDiv && item.lastDiv.date;
             const inline = iso => iso ? `${fmtDate(iso)} ${dateBadge(iso)}` : '—';
             const opts = ['EUR', 'USD', 'GBP', 'CHF'].map(c => `<option value="${c}" ${c === m.cur ? 'selected' : ''}>${c}</option>`).join('');
@@ -553,6 +618,7 @@
                         <div class="text-[11px] text-slate-500 dark:text-slate-400">lorda ${m.lorda !== null ? fmtCurrency(m.lorda) : na}</div>
                     </div>
                 </div>
+                <div class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">${m.shares > 0 ? fmtQty(m.shares) + ' quote possedute allo stacco' : 'Non possedevi quote alla data di stacco'}</div>
                 <div class="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 items-center text-slate-600 dark:text-slate-300">
                     <span class="text-slate-500 dark:text-slate-400">Stacco</span><span>${inline(ex)}</span>
                     <span class="text-slate-500 dark:text-slate-400">Pagamento</span>
@@ -570,6 +636,56 @@
         let store = { activeId: MAIN_ID, portfolios: [] };
         function uid() { return 'pf_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
         function activePf() { return store.portfolios.find(p => p.id === store.activeId) || store.portfolios[0]; }
+
+        // --- OPERAZIONI (storico acquisti/vendite): quote e prezzo di carico si calcolano da qui (costo medio ponderato) ---
+        function newTradeId() { return 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+        function normTrade(t) {
+            if (!t || typeof t !== 'object') return null;
+            const qty = Number(t.qty), price = Number(t.price), fee = Number(t.fee || 0);
+            if (!['buy', 'sell'].includes(t.type) || !isFinite(qty) || qty <= 0 || !isFinite(price) || price < 0 || !isFinite(fee) || fee < 0) return null;
+            const date = /^\d{4}-\d{2}-\d{2}$/.test(String(t.date || '')) ? t.date : '';
+            return { id: cleanStr(t.id, 30) || newTradeId(), date, type: t.type, qty, price, fee };
+        }
+        function sortedTrades(trades) {
+            // senza data (saldo iniziale) per primo; a parità di giorno gli acquisti prima delle vendite
+            return trades.map((t, i) => ({ t, i })).sort((a, b) =>
+                (a.t.date || '').localeCompare(b.t.date || '') || (a.t.type === b.t.type ? 0 : a.t.type === 'buy' ? -1 : 1) || a.i - b.i).map(x => x.t);
+        }
+        function computePosition(trades) {
+            let qty = 0, cost = 0, bought = 0, sold = 0, realized = 0, oversold = false;
+            for (const t of sortedTrades(trades)) {
+                if (t.type === 'buy') {
+                    const c = t.qty * t.price + t.fee;
+                    cost += c; qty += t.qty; bought += c;
+                } else {
+                    const sq = Math.min(t.qty, qty);
+                    if (t.qty > qty + 1e-9) oversold = true;
+                    const avg = qty > 0 ? cost / qty : 0;
+                    cost -= sq * avg; qty -= sq;
+                    sold += t.qty * t.price - t.fee;
+                    realized += sq * (t.price - avg) - t.fee;
+                }
+                if (qty < 1e-9) { qty = 0; cost = 0; }
+            }
+            return { shares: qty, avg: qty > 0 ? cost / qty : 0, cost, bought, sold, realized, oversold };
+        }
+        function sharesAt(item, iso) {
+            if (!iso) return item.shares;
+            return computePosition((item.trades || []).filter(t => !t.date || t.date < iso)).shares;
+        }
+        function applyTrades(item) {
+            const pos = computePosition(item.trades || []);
+            item.shares = Number(pos.shares.toFixed(6));
+            item.buyPrice = Number(pos.avg.toFixed(6));
+            return pos;
+        }
+        function ensureTrades(item) {
+            if (!Array.isArray(item.trades)) {
+                const q = Number(item.shares) || 0, p = Number(item.buyPrice) || 0;
+                item.trades = q > 0 ? [{ id: newTradeId(), date: '', type: 'buy', qty: q, price: p, fee: 0 }] : [];
+            } else item.trades = item.trades.map(normTrade).filter(Boolean);
+            applyTrades(item);
+        }
 
         function loadPortfolio() {
             loadFx();
@@ -592,7 +708,7 @@
             }
             store.portfolios.forEach(p => {
                 if (!Array.isArray(p.items)) p.items = [];
-                p.items.forEach(i => { if (!i.histDates) i.history = []; }); // scarta storici non reali
+                p.items.forEach(i => { if (!i.histDates) i.history = []; ensureTrades(i); }); // scarta storici non reali
             });
             portfolio = activePf().items;
             saveToStorage(true);
@@ -886,6 +1002,7 @@
             if (!['AZIONARIO', 'OBBLIGAZIONARIO'].includes(it.assetType)) it.assetType = 'AZIONARIO';
             if (!['Accumulo', 'Mensile', 'Trimestrale', 'Semestrale', 'Annuale'].includes(it.dividend)) it.dividend = 'Accumulo';
             if (!Array.isArray(it.history)) it.history = [];
+            ensureTrades(it);
             return it;
         }
         function sanitizePortfolio(p, idx) {
@@ -1263,17 +1380,18 @@
 
             const taxRate = item.assetType === 'OBBLIGAZIONARIO' ? 0.18 : 0.26;
             const wanted = document.getElementById('histNet').checked ? 'net' : 'ps';
-            const eff = (wanted !== 'ps' && c.cur === 'EUR' && item.shares > 0) ? wanted : 'ps';
-            const mult = eff === 'ps' ? 1 : item.shares * (eff === 'net' ? 1 - taxRate : 1);
+            const eff = (wanted !== 'ps' && c.cur === 'EUR' && (item.trades || []).length) ? wanted : 'ps';
             const from = document.getElementById('histFrom').value, to = document.getElementById('histTo').value;
             const byYM = {};
             c.list.forEach(([d, a]) => {
                 const ym = d.slice(0, 7);
                 if ((from && ym < from) || (to && ym > to)) return;
                 (byYM[ym] = byYM[ym] || { sum: 0, dates: [] });
-                byYM[ym].sum += a; byYM[ym].dates.push([d, a]);
+                const sh = eff === 'ps' ? null : sharesAt(item, d);
+                if (sh !== null && sh <= 0) return; // non possedevi quote allo stacco: nessuna cedola
+                byYM[ym].sum += eff === 'ps' ? a : a * sh * (1 - taxRate); byYM[ym].dates.push([d, a, sh]);
             });
-            const yms = Object.keys(byYM);
+            const yms = Object.keys(byYM).filter(k => byYM[k].dates.length);
             const unit = c.cur === 'EUR' ? '€' : c.cur;
             const last = c.list[c.list.length - 1];
             const lastTxt = `${fmtDate(last[0])} · ${fmtDiv(last[1])} ${c.cur}`;
@@ -1290,11 +1408,11 @@
                 let yearSum = 0, cells = '';
                 for (let m = 1; m <= 12; m++) {
                     const ym = `${y}-${String(m).padStart(2, '0')}`, e = byYM[ym];
-                    if (!e) { cells += '<td class="border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 min-w-[44px] px-1 py-1.5">&nbsp;</td>'; continue; }
-                    const v = e.sum * mult;
+                    if (!e || !e.dates.length) { cells += '<td class="border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 min-w-[44px] px-1 py-1.5">&nbsp;</td>'; continue; }
+                    const v = e.sum;
                     yearSum += v; n += e.dates.length;
                     const future = ym >= now;
-                    const tip = e.dates.map(([d, a]) => `Stacco ${fmtDate(d)}: ${fmtDiv(a)} ${c.cur}/quota`).join(' | ');
+                    const tip = e.dates.map(([d, a, sh]) => `Stacco ${fmtDate(d)}: ${fmtDiv(a)} ${c.cur}/quota` + (sh !== null ? ` × ${fmtQty(sh)} quote` : '')).join(' | ');
                     cells += `<td title="${escHtml(tip)}" class="border border-slate-300 dark:border-slate-600 min-w-[44px] px-1 py-1.5 text-slate-900 dark:text-slate-50 ${future ? 'bg-sky-200 dark:bg-sky-900/70' : 'bg-[#c6e0a0] dark:bg-emerald-900/60'}">${fmtHistCell(v)}</td>`;
                 }
                 tot += yearSum;
@@ -1304,12 +1422,176 @@
                 <thead><tr><th class="${stick}">Anno</th>${MESI_IT.map(m => `<th class="${th}">${m}</th>`).join('')}<th class="px-2 py-1.5 font-bold">Totale</th></tr></thead>
                 <tbody>${rows}</tbody></table>`;
 
-            const unitTxt = eff === 'ps' ? `${unit} per quota` : (eff === 'net' ? `${unit} netti (${fmtNumber(item.shares, 4)} quote)` : `${unit} lordi (${fmtNumber(item.shares, 4)} quote)`);
+            const unitTxt = eff === 'ps' ? `${unit} per quota` : `${unit} netti, con le quote possedute a ogni stacco`;
             sumEl.innerHTML = `<span><strong>${escHtml(item.ticker)}</strong> · importi in ${escHtml(unitTxt)}</span>
                 <span>Cedole nel periodo: <strong>${n}</strong></span>
                 <span>Totale periodo: <strong>${fmtNumber(tot, 2)}</strong></span>
                 <span>Ultimo stacco: <strong>${lastTxt}</strong></span>
                 ${wanted !== 'ps' && eff === 'ps' ? `<span class="text-amber-700 dark:text-amber-400">${c.cur !== 'EUR' ? 'Valuta ' + c.cur + ': mostro l\'importo per quota' : 'Servono quote in portafoglio per stimare l\'incasso: mostro l\'importo per quota'}</span>` : ''}`;
+        }
+
+        // --- FINESTRA OPERAZIONI ---
+        let tradesItemId = null;
+        const todayIso = () => new Date().toLocaleDateString('sv-SE');
+        const numIn = id => { const v = document.getElementById(id).value.trim().replace(',', '.'); return v === '' ? null : Number(v); };
+        const tradeTotal = t => t.type === 'buy' ? t.qty * t.price + t.fee : t.qty * t.price - t.fee;
+
+        function openTradesModal(id) {
+            const item = portfolio.find(e => e.id === id);
+            if (!item) return;
+            tradesItemId = id;
+            resetTradeForm();
+            renderTrades();
+            const m = document.getElementById('trades-modal');
+            m.classList.remove('hidden'); m.classList.add('flex');
+        }
+        function closeTradesModal() {
+            const m = document.getElementById('trades-modal');
+            m.classList.add('hidden'); m.classList.remove('flex');
+            tradesItemId = null;
+        }
+        function resetTradeForm() {
+            document.getElementById('t-edit-id').value = '';
+            document.getElementById('t-type').value = 'buy';
+            document.getElementById('t-date').value = todayIso();
+            ['t-qty', 't-price', 't-fee'].forEach(i => document.getElementById(i).value = '');
+            document.getElementById('t-form-title').textContent = 'Nuova operazione';
+            document.getElementById('t-submit').textContent = 'Aggiungi';
+            document.getElementById('t-cancel').classList.add('hidden');
+        }
+        function renderTrades() {
+            const item = portfolio.find(e => e.id === tradesItemId);
+            if (!item) return;
+            const pos = computePosition(item.trades);
+            document.getElementById('trades-title').textContent = `${item.ticker} — Operazioni`;
+            document.getElementById('trades-sub').textContent = `${item.isin} · ${item.trades.length} operazioni`;
+            const kv = (k, v, cls = '') => `<div><dt class="text-slate-500 dark:text-slate-400">${k}</dt><dd class="font-semibold ${cls || 'text-slate-900 dark:text-white'}">${v}</dd></div>`;
+            const hasSell = item.trades.some(t => t.type === 'sell');
+            document.getElementById('trades-summary').innerHTML =
+                kv('Quote possedute', fmtQty(pos.shares)) +
+                kv('Prezzo medio di carico', pos.shares > 0 ? fmtPrice(pos.avg) + ' €' : '—') +
+                kv('Investito (posizione attuale)', pos.shares > 0 ? fmtCurrency(pos.cost) : '—') +
+                kv('Totale acquistato', fmtCurrency(pos.bought)) +
+                (hasSell ? kv('Totale venduto', fmtCurrency(pos.sold)) + kv('Plusvalenza realizzata (lorda)', fmtCurrency(pos.realized), pos.realized >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400') : '');
+            const list = sortedTrades(item.trades).reverse();
+            const list2 = list.filter(t => t.date).concat(list.filter(t => !t.date));
+            const body = list2.length ? list2.map(t => {
+                const initial = !t.date;
+                return `<tr class="border-t border-slate-200 dark:border-slate-800">
+                    <td class="py-1.5 px-2 text-left whitespace-nowrap">${initial ? '<span class="text-slate-500">Saldo iniziale</span>' : fmtDate(t.date)}</td>
+                    <td class="py-1.5 px-2"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${t.type === 'buy' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'}">${t.type === 'buy' ? 'ACQUISTO' : 'VENDITA'}</span></td>
+                    <td class="py-1.5 px-2">${fmtQty(t.qty)}</td>
+                    <td class="py-1.5 px-2">${fmtPrice(t.price)}</td>
+                    <td class="py-1.5 px-2">${t.fee ? fmtPrice(t.fee) : '—'}</td>
+                    <td class="py-1.5 px-2 font-semibold">${fmtCurrency(tradeTotal(t))}</td>
+                    <td class="py-1.5 px-2 whitespace-nowrap">
+                        <button type="button" onclick="editTrade('${t.id}')" class="p-1 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400" title="Modifica"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
+                        <button type="button" onclick="deleteTrade('${t.id}')" class="p-1 text-slate-500 hover:text-red-600 dark:hover:text-red-400" title="Elimina"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                    </td></tr>`;
+            }).join('') : '<tr><td colspan="7" class="py-5 text-center text-slate-500 dark:text-slate-400">Nessuna operazione: aggiungi il primo acquisto qui sopra.</td></tr>';
+            document.getElementById('trades-list').innerHTML = `<table class="w-full text-center text-xs">
+                <thead><tr class="text-slate-500 dark:text-slate-400"><th class="py-1.5 px-2 text-left font-medium">Data</th><th class="font-medium">Tipo</th><th class="font-medium">Quote</th><th class="font-medium">Prezzo €</th><th class="font-medium">Comm. €</th><th class="font-medium">Totale</th><th></th></tr></thead>
+                <tbody>${body}</tbody></table>`;
+            if (window.lucide) lucide.createIcons();
+        }
+        function saveTrade(e) {
+            e.preventDefault();
+            const item = portfolio.find(x => x.id === tradesItemId);
+            if (!item) return;
+            const type = document.getElementById('t-type').value, date = document.getElementById('t-date').value;
+            const qty = numIn('t-qty'), price = numIn('t-price'), fee = numIn('t-fee') ?? 0;
+            if (!date) { showToast('Inserisci la data dell\'operazione'); return; }
+            if (!(qty > 0) || !isFinite(qty)) { showToast('Inserisci un numero di quote maggiore di zero'); return; }
+            if (!(price > 0) || !isFinite(price)) { showToast('Inserisci il prezzo per quota (maggiore di zero)'); return; }
+            if (!isFinite(fee) || fee < 0) { showToast('La commissione deve essere zero o maggiore'); return; }
+            const editId = document.getElementById('t-edit-id').value;
+            const trade = { id: editId || newTradeId(), date, type, qty, price, fee };
+            const next = editId ? item.trades.map(t => t.id === editId ? trade : t) : item.trades.concat(trade);
+            if (computePosition(next).oversold) { showToast('Operazione non valida: venderesti più quote di quelle possedute in quella data'); return; }
+            item.trades = next;
+            applyTrades(item);
+            saveToStorage();
+            renderAll();
+            resetTradeForm();
+            renderTrades();
+            showToast(editId ? 'Operazione modificata' : (type === 'buy' ? 'Acquisto aggiunto' : 'Vendita aggiunta'));
+        }
+        function editTrade(tid) {
+            const item = portfolio.find(x => x.id === tradesItemId);
+            const t = item && item.trades.find(x => x.id === tid);
+            if (!t) return;
+            document.getElementById('t-edit-id').value = t.id;
+            document.getElementById('t-type').value = t.type;
+            document.getElementById('t-date').value = t.date || todayIso();
+            document.getElementById('t-qty').value = String(t.qty).replace('.', ',');
+            document.getElementById('t-price').value = String(t.price).replace('.', ',');
+            document.getElementById('t-fee').value = t.fee ? String(t.fee).replace('.', ',') : '';
+            document.getElementById('t-form-title').textContent = t.date ? 'Modifica operazione' : 'Modifica saldo iniziale (aggiungi la data se la conosci)';
+            document.getElementById('t-submit').textContent = 'Salva modifica';
+            document.getElementById('t-cancel').classList.remove('hidden');
+            document.getElementById('t-qty').focus();
+        }
+        function deleteTrade(tid) {
+            const item = portfolio.find(x => x.id === tradesItemId);
+            if (!item) return;
+            const next = item.trades.filter(t => t.id !== tid);
+            if (computePosition(next).oversold) { showToast('Non posso eliminarla: le vendite successive supererebbero le quote possedute. Elimina prima quelle vendite.'); return; }
+            if (!confirm('Eliminare questa operazione? Quote e prezzo medio verranno ricalcolati.')) return;
+            item.trades = next;
+            applyTrades(item);
+            saveToStorage();
+            renderAll();
+            if (document.getElementById('t-edit-id').value === tid) resetTradeForm();
+            renderTrades();
+            showToast('Operazione eliminata');
+        }
+
+        // --- STORICO OPERAZIONI DEL PORTAFOGLIO ---
+        function resetOpsFilter() {
+            ['opsEtf', 'opsFrom', 'opsTo'].forEach(i => document.getElementById(i).value = i === 'opsEtf' ? 'ALL' : '');
+            document.getElementById('opsType').value = 'ALL';
+            renderOps();
+        }
+        function renderOps() {
+            const body = document.getElementById('ops-body');
+            if (!body) return;
+            const etfSel = document.getElementById('opsEtf'), prev = etfSel.value || 'ALL';
+            etfSel.innerHTML = '<option value="ALL">Tutti gli ETF</option>' + portfolio.map(i => `<option value="${i.id}">${escHtml(i.ticker)}</option>`).join('');
+            etfSel.value = portfolio.some(i => i.id === prev) ? prev : 'ALL';
+            const fEtf = etfSel.value, fType = document.getElementById('opsType').value;
+            const from = document.getElementById('opsFrom').value, to = document.getElementById('opsTo').value;
+            const rows = [];
+            portfolio.forEach(item => (item.trades || []).forEach(t => {
+                if (fEtf !== 'ALL' && item.id !== fEtf) return;
+                if (fType !== 'ALL' && t.type !== fType) return;
+                if ((from || to) && !t.date) return;
+                if ((from && t.date < from) || (to && t.date > to)) return;
+                rows.push({ item, t });
+            }));
+            rows.sort((a, b) => (b.t.date ? 1 : 0) - (a.t.date ? 1 : 0) || b.t.date.localeCompare(a.t.date) || a.item.ticker.localeCompare(b.item.ticker));
+            document.getElementById('ops-count').textContent = rows.length;
+            let buy = 0, sell = 0;
+            rows.forEach(({ t }) => { if (t.type === 'buy') buy += tradeTotal(t); else sell += tradeTotal(t); });
+            document.getElementById('ops-sum').innerHTML = rows.length
+                ? `<span>Acquistato: <strong>${fmtCurrency(buy)}</strong></span><span>Venduto: <strong>${fmtCurrency(sell)}</strong></span><span>Investimento netto: <strong>${fmtCurrency(buy - sell)}</strong></span>` : '';
+            body.innerHTML = rows.length ? `<table class="w-full text-center text-xs whitespace-nowrap">
+                <thead><tr class="text-slate-500 dark:text-slate-400"><th class="py-1.5 px-2 text-left font-medium">Data</th><th class="font-medium">ETF</th><th class="font-medium">Tipo</th><th class="font-medium">Quote</th><th class="font-medium">Prezzo €</th><th class="font-medium">Comm. €</th><th class="font-medium">Totale</th></tr></thead>
+                <tbody>${rows.map(({ item, t }) => `<tr onclick="openTradesModal('${item.id}')" class="border-t border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer" title="Apri le operazioni di ${escHtml(item.ticker)}">
+                    <td class="py-1.5 px-2 text-left">${t.date ? fmtDate(t.date) : '<span class="text-slate-500">Saldo iniziale</span>'}</td>
+                    <td class="py-1.5 px-2 font-semibold">${escHtml(item.ticker)}</td>
+                    <td class="py-1.5 px-2"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${t.type === 'buy' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'}">${t.type === 'buy' ? 'ACQUISTO' : 'VENDITA'}</span></td>
+                    <td class="py-1.5 px-2">${fmtQty(t.qty)}</td><td class="py-1.5 px-2">${fmtPrice(t.price)}</td><td class="py-1.5 px-2">${t.fee ? fmtPrice(t.fee) : '—'}</td>
+                    <td class="py-1.5 px-2 font-semibold">${fmtCurrency(tradeTotal(t))}</td></tr>`).join('')}</tbody></table>`
+                : '<p class="py-6 text-center text-xs text-slate-500 dark:text-slate-400">Nessuna operazione nel periodo o con i filtri scelti.</p>';
+            // riepilogo per ETF: posizione attuale, non dipende dai filtri
+            const held = portfolio.filter(i => (i.trades || []).length);
+            document.getElementById('ops-recap').innerHTML = held.length ? `<table class="w-full text-center text-xs whitespace-nowrap">
+                <thead><tr class="text-slate-500 dark:text-slate-400"><th class="py-1.5 px-2 text-left font-medium">ETF</th><th class="font-medium">Quote</th><th class="font-medium">Prezzo medio €</th><th class="font-medium">Investito</th><th class="font-medium">Operazioni</th></tr></thead>
+                <tbody>${held.map(i => { const p = computePosition(i.trades); return `<tr onclick="openTradesModal('${i.id}')" class="border-t border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer">
+                    <td class="py-1.5 px-2 text-left font-semibold">${escHtml(i.ticker)}</td><td class="py-1.5 px-2">${fmtQty(p.shares)}</td>
+                    <td class="py-1.5 px-2">${p.shares > 0 ? fmtPrice(p.avg) : '—'}</td><td class="py-1.5 px-2 font-semibold">${p.shares > 0 ? fmtCurrency(p.cost) : '—'}</td>
+                    <td class="py-1.5 px-2">${i.trades.length}</td></tr>`; }).join('')}</tbody></table>`
+                : '<p class="py-4 text-center text-xs text-slate-500 dark:text-slate-400">Nessuna operazione registrata.</p>';
         }
 
         // --- POPUP DI MODIFICA VALORE (evita modifiche accidentali nella tabella) ---
@@ -1358,6 +1640,7 @@
         document.addEventListener('keydown', ev => {
             if (ev.key !== 'Escape') return;
             if (valueEdit) closeValueModal();
+            if (!document.getElementById('trades-modal').classList.contains('hidden')) closeTradesModal();
             if (!document.getElementById('info-modal').classList.contains('hidden')) closeInfoModal();
         });
 
@@ -1429,9 +1712,10 @@
             const fx = cur === 'EUR' ? 1 : (fxRates[cur] ? fxRates[cur].rate : null);
             const taxRate = item.assetType === 'OBBLIGAZIONARIO' ? 0.18 : 0.26;
             const perShare = item.lastDiv ? item.lastDiv.amount : null;
-            const lorda = (perShare !== null && fx !== null && item.shares > 0) ? perShare * item.shares * fx : null;
+            const shares = sharesAt(item, item.lastDiv && item.lastDiv.date);
+            const lorda = (perShare !== null && fx !== null && shares > 0) ? perShare * shares * fx : null;
             const netta = lorda !== null ? lorda * (1 - taxRate) : null;
-            return { cur, fx, taxRate, perShare, lorda, netta };
+            return { cur, fx, taxRate, perShare, lorda, netta, shares };
         }
 
         function dateBadge(iso) {
@@ -1486,21 +1770,23 @@
             const body = document.getElementById('cedole-body'), foot = document.getElementById('cedole-foot'), cardsEl = document.getElementById('cedole-cards');
             const hideNoShares = document.getElementById('cedoleHideNoShares').checked;
             const allRows = portfolio.filter(i => i.dividend !== 'Accumulo' && (!hideNoShares || i.shares > 0));
+            // per i periodi passati servono anche gli ETF che oggi non possiedi più ma avevi allora
+            const histRows = portfolio.filter(i => i.dividend !== 'Accumulo' && (!hideNoShares || i.shares > 0 || (i.trades || []).length));
 
             // Filtro mese/anno (gli anni disponibili derivano dalle date presenti)
             const basisEl = document.getElementById('cedoleBasis'), monthEl = document.getElementById('cedoleMonth'), yearEl = document.getElementById('cedoleYear');
             const basis = basisEl.value, fMonth = monthEl.value;
             if (!histCache) loadHistCache();
             const histYears = [];
-            allRows.forEach(i => { const hc = histCache[i.ticker]; if (hc) hc.list.forEach(([d]) => histYears.push(d.slice(0, 4))); });
-            const years = [...new Set([...allRows.map(i => cedolaFilterDate(i, basis).slice(0, 4)).filter(Boolean), ...histYears])].sort();
+            histRows.forEach(i => { const hc = histCache[i.ticker]; if (hc) hc.list.forEach(([d]) => histYears.push(d.slice(0, 4))); });
+            const years = [...new Set([...histRows.map(i => cedolaFilterDate(i, basis).slice(0, 4)).filter(Boolean), ...histYears])].sort();
             if (yearEl.value !== 'ALL' && !years.includes(yearEl.value)) years.push(yearEl.value);
             const prevYear = yearEl.value;
             yearEl.innerHTML = '<option value="ALL">Tutti gli anni</option>' + years.sort().map(y => `<option value="${y}">${y}</option>`).join('');
             yearEl.value = years.includes(prevYear) ? prevYear : 'ALL';
             const fYear = yearEl.value;
             const filtering = fMonth !== 'ALL' || fYear !== 'ALL';
-            if (filtering && allRows.length) { renderCedoleHistoric(allRows, basis, fMonth, fYear); return; }
+            if (filtering && histRows.length) { renderCedoleHistoric(histRows, basis, fMonth, fYear); return; }
             const rows = !filtering ? allRows : allRows.filter(i => {
                 const d = cedolaFilterDate(i, basis);
                 if (!d) return false;
@@ -1526,7 +1812,7 @@
                 const m = cedolaMetrics(item);
                 if (m.lorda !== null) { sl += m.lorda; sn += m.netta; }
                 const opts = ['EUR', 'USD', 'GBP', 'CHF'].map(c => `<option value="${c}" ${c === m.cur ? 'selected' : ''}>${c}</option>`).join('');
-                const na = item.shares > 0 ? 'n/d' : '—';
+                const na = m.shares > 0 ? 'n/d' : '—';
                 const auto = item.divSrc === 'stockanalysis';
                 if ((item.payDate || (item.lastDiv && item.lastDiv.date) || '') > todayIso) anyFuture = true;
                 const srcTip = auto ? 'Fonte: stockanalysis.com (Borsa Italiana, S&P Global)' : 'Fonte: Yahoo Finance, valuta stimata dal fondo' + (item.divErr ? ' — ' + String(item.divErr).replace(/"/g, '') : '');
@@ -1537,7 +1823,7 @@
                     <td class="${cell} font-semibold" title="${srcTip}">${m.perShare !== null ? fmtDiv(m.perShare) + ' ' + m.cur : '—'}</td>
                     <td class="py-1 px-2">${auto ? m.cur : `<select onchange="setDivCur('${item.id}', this.value)" class="px-1.5 py-0.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded">${opts}</select>*`}</td>
                     <td class="${cell}">${m.fx !== null ? fmtNumber(m.fx, 4) : 'n/d'}</td>
-                    <td class="${cell}">${m.lorda !== null ? fmtCurrency(m.lorda) : na}</td>
+                    <td class="${cell}" title="${m.shares > 0 ? 'Quote possedute allo stacco: ' + fmtQty(m.shares) : 'Non possedevi quote alla data di stacco'}">${m.lorda !== null ? fmtCurrency(m.lorda) : na}</td>
                     <td class="${cell} font-bold text-emerald-600 dark:text-emerald-400" title="Tasse ${Math.round(m.taxRate * 100)}%">${m.netta !== null ? fmtCurrency(m.netta) : na}</td>
                     <td class="${cell}">${dateCell(item.lastDiv && item.lastDiv.date)}</td>
                     ${auto ? `<td class="${cell}">${dateCell(item.payDate)}</td>` : `<td class="py-1 px-2"><input type="date" value="${item.payDate || ''}" onchange="setPayDate('${item.id}', this.value)" class="px-1.5 py-0.5 bg-amber-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded">${item.payDate ? '<br>' + dateBadge(item.payDate) : ''}</td>`}
@@ -1581,22 +1867,24 @@
         function cedolaEventMetrics(ev) {
             const fx = ev.cur === 'EUR' ? 1 : (fxRates[ev.cur] ? fxRates[ev.cur].rate : null);
             const taxRate = ev.item.assetType === 'OBBLIGAZIONARIO' ? 0.18 : 0.26;
-            const lorda = (fx !== null && ev.item.shares > 0) ? ev.amount * ev.item.shares * fx : null;
-            return { fx, taxRate, lorda, netta: lorda !== null ? lorda * (1 - taxRate) : null };
+            const shares = sharesAt(ev.item, ev.date);
+            const lorda = (fx !== null && shares > 0) ? ev.amount * shares * fx : null;
+            return { fx, taxRate, lorda, netta: lorda !== null ? lorda * (1 - taxRate) : null, shares };
         }
         function renderCedoleHistoric(allRows, basis, fMonth, fYear) {
             const body = document.getElementById('cedole-body'), foot = document.getElementById('cedole-foot'), cardsEl = document.getElementById('cedole-cards');
             if (!histCache) loadHistCache();
             const { evs, pending, failed } = cedolaEvents(allRows);
             const key = ev => basis === 'ex' ? ev.date : (ev.pay || ev.date);
-            const sel = evs.filter(ev => { const d = key(ev); return (fYear === 'ALL' || d.slice(0, 4) === fYear) && (fMonth === 'ALL' || d.slice(5, 7) === fMonth); })
+            const hideNo = document.getElementById('cedoleHideNoShares').checked;
+            const sel = evs.filter(ev => { const d = key(ev); return (fYear === 'ALL' || d.slice(0, 4) === fYear) && (fMonth === 'ALL' || d.slice(5, 7) === fMonth) && (!hideNo || sharesAt(ev.item, ev.date) > 0); })
                 .sort((a, b) => key(b).localeCompare(key(a)) || a.item.ticker.localeCompare(b.item.ticker));
             document.getElementById('cedole-count').textContent = sel.length;
             const todayIso = new Date().toLocaleDateString('sv-SE');
             const notes = [];
             if (pending.length) notes.push('Recupero dello storico in corso per: ' + pending.join(', ') + '…');
             if (failed.length) notes.push('Storico non disponibile per: ' + failed.join(', ') + ' (per questi ETF conta solo l\'ultima cedola).');
-            if (sel.some(ev => !ev.pay)) notes.push('Per le cedole passate la data di pagamento non è disponibile: il filtro usa la data di stacco. Importi calcolati con le quote attuali.');
+            if (sel.some(ev => !ev.pay)) notes.push('Per le cedole passate la data di pagamento non è disponibile: il filtro usa la data di stacco. Gli importi usano le quote che possedevi alla data di stacco, ricavate dalle operazioni.');
             const noteHtml = notes.map(n => escHtml(n)).join('<br>');
             if (!sel.length) {
                 const t = 'Nessuna cedola nel periodo selezionato' + (pending.length ? ' (storico ancora in caricamento…)' : '') + '.';
@@ -1611,14 +1899,14 @@
                 const m = cedolaEventMetrics(ev);
                 if (m.lorda !== null) { sl += m.lorda; sn += m.netta; }
                 if (key(ev) > todayIso) anyFuture = true;
-                const na = ev.item.shares > 0 ? 'n/d' : '—';
+                const na = m.shares > 0 ? 'n/d' : '—';
                 return `<tr class="hover:bg-slate-50/90 dark:hover:bg-slate-800/50">
                     <td class="py-2 px-3 font-medium bg-sheet-tickerBg dark:bg-sheet-tickerDark">${ev.item.ticker}</td>
                     <td class="${cell}">${ev.item.dividend}</td>
                     <td class="${cell} font-semibold">${fmtDiv(ev.amount)} ${ev.cur}</td>
                     <td class="${cell}">${ev.cur}</td>
                     <td class="${cell}">${m.fx !== null ? fmtNumber(m.fx, 4) : 'n/d'}</td>
-                    <td class="${cell}">${m.lorda !== null ? fmtCurrency(m.lorda) : na}</td>
+                    <td class="${cell}" title="${m.shares > 0 ? 'Quote possedute allo stacco: ' + fmtQty(m.shares) : 'Non possedevi quote alla data di stacco'}">${m.lorda !== null ? fmtCurrency(m.lorda) : na}</td>
                     <td class="${cell} font-bold text-emerald-600 dark:text-emerald-400" title="Tasse ${Math.round(m.taxRate * 100)}%">${m.netta !== null ? fmtCurrency(m.netta) : na}</td>
                     <td class="${cell}">${dateCell(ev.date)}</td>
                     <td class="${cell}">${ev.pay ? dateCell(ev.pay) : '<span title="Data di pagamento non disponibile">n/d</span>'}</td>
@@ -1626,7 +1914,7 @@
             }).join('');
             cardsEl.innerHTML = sel.map(ev => {
                 const m = cedolaEventMetrics(ev);
-                const na = ev.item.shares > 0 ? 'n/d' : '—';
+                const na = m.shares > 0 ? 'n/d' : '—';
                 const inline = iso => iso ? `${fmtDate(iso)} ${dateBadge(iso)}` : 'n/d';
                 return `<div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-xs">
                     <div class="flex items-center gap-3">
@@ -1639,6 +1927,7 @@
                             <div class="text-[11px] text-slate-500 dark:text-slate-400">lorda ${m.lorda !== null ? fmtCurrency(m.lorda) : na}</div>
                         </div>
                     </div>
+                    <div class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">${m.shares > 0 ? fmtQty(m.shares) + ' quote possedute allo stacco' : 'Non possedevi quote alla data di stacco'}</div>
                     <div class="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-slate-600 dark:text-slate-300">
                         <span class="text-slate-500 dark:text-slate-400">Stacco</span><span>${inline(ev.date)}</span>
                         <span class="text-slate-500 dark:text-slate-400">Pagamento</span><span>${inline(ev.pay)}</span>
@@ -1669,6 +1958,7 @@
             renderTable();
             renderCedole();
             renderHist();
+            renderOps();
         }
 
         function renderKPIs() {
@@ -1850,12 +2140,12 @@
 
                         <!-- 3. Quote acquistate -->
                         <td class="py-2 px-2.5 text-slate-900 dark:text-slate-100">
-                            <button type="button" onclick="openValueModal('${item.id}','shares')" title="Clicca per modificare le quote acquistate" class="w-[5.5rem] px-1.5 py-0.5 text-center bg-amber-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded hover:border-indigo-500 hover:bg-amber-100 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">${fmtQty(item.shares)}</button>
+                            <button type="button" onclick="openTradesModal('${item.id}')" title="Clicca per vedere e gestire le operazioni (acquisti e vendite)" class="w-[5.5rem] px-1.5 py-0.5 text-center bg-amber-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded hover:border-indigo-500 hover:bg-amber-100 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">${fmtQty(item.shares)}</button>
                         </td>
 
                         <!-- 4. Valore d'acquisto -->
                         <td class="py-2 px-3 font-bold text-slate-900 dark:text-white">
-                            <button type="button" onclick="openValueModal('${item.id}','buyPrice')" title="Clicca per modificare il valore d'acquisto (€ per quota)" class="w-[5.5rem] px-1.5 py-0.5 text-center bg-amber-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded hover:border-indigo-500 hover:bg-amber-100 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">${item.buyPrice > 0 ? fmtPrice(item.buyPrice) : '0'}</button>
+                            <button type="button" onclick="openTradesModal('${item.id}')" title="Prezzo medio di carico: si calcola dalle operazioni (clic per gestirle)" class="w-[5.5rem] px-1.5 py-0.5 text-center bg-amber-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded hover:border-indigo-500 hover:bg-amber-100 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">${item.buyPrice > 0 ? fmtPrice(item.buyPrice) : '0'}</button>
                         </td>
 
                         <!-- 5. Valore Attuale (Unitario - Borsa di Milano) -->
@@ -1940,6 +2230,9 @@
                             <div class="inline-flex items-center gap-0.5">
                                 <button onclick="editETF('${item.id}')" class="p-1 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 rounded" title="Modifica riga">
                                     <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                                </button>
+                                <button onclick="openTradesModal('${item.id}')" class="p-1 text-slate-500 hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400 rounded" title="Operazioni (acquisti e vendite)">
+                                    <i data-lucide="history" class="w-3.5 h-3.5"></i>
                                 </button>
                                 <button onclick="openInfoModal('${item.id}')" class="p-1 text-slate-500 hover:text-sky-600 dark:text-slate-400 dark:hover:text-sky-400 rounded" title="Informazioni sull'ETF">
                                     <i data-lucide="info" class="w-3.5 h-3.5"></i>
@@ -2120,8 +2413,11 @@
             document.getElementById('edit-id').value = item ? item.id : '';
             document.getElementById('f-ticker').value = item ? item.ticker : '';
             document.getElementById('f-isin').value = item ? item.isin : '';
-            document.getElementById('f-shares').value = item ? item.shares : '';
-            document.getElementById('f-buyPrice').value = item && item.buyPrice > 0 ? item.buyPrice : '';
+            const fs = document.getElementById('f-shares'), fp = document.getElementById('f-buyPrice');
+            fs.value = item ? item.shares : '';
+            fp.value = item && item.buyPrice > 0 ? item.buyPrice : '';
+            fs.disabled = fp.disabled = !!item; // per un ETF esistente si cambiano dalle Operazioni
+            document.getElementById('f-pos-hint').classList.toggle('hidden', !item);
             const modal = document.getElementById('etf-modal');
             modal.classList.remove('hidden');
             modal.classList.add('flex');
@@ -2148,11 +2444,12 @@
                     return;
                 }
                 const item = existing || { id: Date.now().toString(), ter: 0, dividend: 'Accumulo', assetType: 'AZIONARIO', change: 0, history: [], metaOk: false };
-                Object.assign(item, {
-                    ticker, isin,
-                    shares: parseFloat(document.getElementById('f-shares').value) || 0,
-                    buyPrice: parseFloat(document.getElementById('f-buyPrice').value) || 0
-                });
+                Object.assign(item, { ticker, isin });
+                if (!existing) {
+                    const q = parseFloat(document.getElementById('f-shares').value) || 0, pr = parseFloat(document.getElementById('f-buyPrice').value) || 0;
+                    item.trades = q > 0 ? [{ id: newTradeId(), date: '', type: 'buy', qty: q, price: pr, fee: 0 }] : [];
+                }
+                applyTrades(item);
                 if (mkt.status === 'fulfilled') Object.assign(item, mkt.value);
                 if (info.status === 'fulfilled') applyJustEtf(item, info.value);
                 if (!existing) portfolio.push(item);
