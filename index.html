@@ -2106,8 +2106,11 @@
                     : `<span class="text-red-600 dark:text-red-400 font-semibold">▼ ${fmtCurrency(item.change)}</span>`;
 
                 // Rappresentazione della posizione del valore attuale in una linea tra Low52 e High52
+                // posizione del valore d'acquisto sulla barra (solo se cade tra Min e Max)
+                const buyInRange = item.buyPrice > 0 && item.high52 > item.low52 && item.buyPrice >= item.low52 && item.buyPrice <= item.high52;
+                const buyPct = buyInRange ? (item.buyPrice - item.low52) / (item.high52 - item.low52) * 100 : null;
                 const minMaxLineHTML = `
-                    <div class="w-24 mx-auto flex flex-col items-center gap-0.5" title="LOW52: ${fmtPrice(item.low52)} € | Attuale: ${fmtPrice(item.currPrice)} € (${Math.round(m.pos52Percent)}%) | HIGH52: ${fmtPrice(item.high52)} €">
+                    <div class="w-24 mx-auto flex flex-col items-center gap-0.5" title="LOW52: ${fmtPrice(item.low52)} € | Attuale: ${fmtPrice(item.currPrice)} € (${Math.round(m.pos52Percent)}%) | HIGH52: ${fmtPrice(item.high52)} €${item.buyPrice > 0 ? ' | Acquisto: ' + fmtPrice(item.buyPrice) + ' €' + (buyInRange ? '' : ' (fuori da Min/Max)') : ''}">
                         <div class="relative w-full h-3 flex items-center">
                             <!-- Estremo sinistro Low52 -->
                             <span class="w-[1.5px] h-2 bg-slate-500 dark:bg-slate-400 shrink-0"></span>
@@ -2115,6 +2118,8 @@
                             <div class="relative flex-1 h-[2px] bg-slate-300 dark:bg-slate-600">
                                 <!-- Segmento riempito fino al valore attuale -->
                                 <div class="absolute left-0 top-0 h-full bg-blue-600 dark:bg-blue-400" style="width: ${m.pos52Percent.toFixed(1)}%"></div>
+                                ${buyPct !== null ? `<!-- Stanghetta del valore d'acquisto -->
+                                <span class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-[2px] h-3.5 rounded-full bg-indigo-600 dark:bg-indigo-300" style="left: ${buyPct.toFixed(1)}%"></span>` : ''}
                                 <!-- Indicatore circolare posizione Valore Attuale -->
                                 <span class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full bg-amber-500 border-[1.5px] border-slate-900 dark:border-white shadow-xs" style="left: ${m.pos52Percent.toFixed(1)}%"></span>
                             </div>
