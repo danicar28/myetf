@@ -7,6 +7,17 @@
     <!-- PWA -->
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" id="themeColorMeta" content="#f1f5f9">
+    <meta name="color-scheme" content="light dark">
+    <script>
+        // Tema e colore delle barre di sistema impostati subito, prima del primo disegno (niente lampo di colore sbagliato)
+        (function () {
+            try {
+                var dark = localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                if (dark) document.documentElement.classList.add('dark');
+                document.getElementById('themeColorMeta').setAttribute('content', dark ? '#0b1120' : '#f1f5f9');
+            } catch (e) {}
+        })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
     <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -2339,6 +2350,13 @@
             const m = document.getElementById('themeColorMeta');
             if (m) m.setAttribute('content', document.documentElement.classList.contains('dark') ? '#0b1120' : '#f1f5f9');
         }
+
+        // Se non hai scelto un tema a mano, segue il cambio chiaro/scuro del telefono
+        try {
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+                if (!('theme' in localStorage)) { initTheme(); lucide.createIcons(); }
+            });
+        } catch (e) {}
 
         function toggleTheme() {
             const html = document.documentElement;
