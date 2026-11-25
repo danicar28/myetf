@@ -112,6 +112,7 @@
             </div>
 
             <div class="flex items-center gap-2 sm:gap-2.5">
+                <button type="button" id="btn-privacy" onclick="togglePrivacy()" title="Nascondi importi" class="p-2 rounded-xl border bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-700"><i data-lucide="eye" class="w-4 h-4"></i></button>
                 <button type="button" id="live-badge" onclick="toggleLive()" class="hidden items-center gap-1.5 px-2 py-1 text-[11px] font-medium rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 cursor-pointer"></button>
                 <button id="btn-fetch-market" onclick="fetchMilanMarketData()" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium text-emerald-800 dark:text-emerald-200 bg-emerald-100 dark:bg-emerald-950/80 hover:bg-emerald-200 dark:hover:bg-emerald-900 border border-emerald-300 dark:border-emerald-800 rounded-xl transition-colors" title="Recupera da internet quotazioni Borsa di Milano (Prezzo, HIGH52, LOW52, Grafico 360gg)">
                     <i id="refresh-icon" data-lucide="globe" class="w-4 h-4"></i>
@@ -339,6 +340,22 @@
             <p class="px-4 pb-3 text-xs text-slate-500 dark:text-slate-400">Storico dei dividendi per quota da Yahoo Finance (Borsa di Milano), raggruppati per <strong>mese di stacco</strong>. Con la spunta <strong>«Netto sulle mie quote»</strong> gli importi diventano cedola netta: dividendo × <strong>quote possedute alla data di stacco</strong> (dalle Operazioni) × (1 − aliquota 26% o 18%), come nella tabella Cedole. Se non possedevi quote in quella data, la cedola non compare. Resta una stima: non tiene conto di ritardi o differenze di pagamento. Verde = già staccata, azzurro = mese corrente o futuro, grigio = nessuna cedola. Passa il dito/mouse su una cella per la data esatta.</p>
         </section>
 
+        <!-- Cedole previste -->
+        <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-800 shadow-sm overflow-hidden">
+            <div class="px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center gap-x-2 gap-y-2 bg-slate-50 dark:bg-slate-900">
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300">Cedole previste (prossimi 12 mesi)</span>
+                <label class="ml-auto flex items-center gap-1 px-2 py-1 text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg cursor-pointer select-none">
+                    <input type="checkbox" id="fcNet" checked onchange="renderForecast()" class="accent-indigo-600"> Al netto delle tasse
+                </label>
+            </div>
+            <div class="p-2 sm:p-3 space-y-3">
+                <div id="fc-sum" class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs"></div>
+                <div id="fc-body" class="overflow-x-auto"></div>
+                <div id="fc-notes" class="px-1 text-[11px] text-slate-500 dark:text-slate-400 space-y-0.5"></div>
+            </div>
+            <p class="px-4 pb-3 text-xs text-slate-500 dark:text-slate-400"><strong>È una stima, non una previsione.</strong> Ripete le cedole staccate negli ultimi 12 mesi (storico Yahoo Finance) nel mese corrispondente, con le quote che possiedi adesso. Gli importi reali dipendono dalle decisioni dell'emittente e possono cambiare. Il rendimento da dividendo è lordo, sul prezzo attuale.</p>
+        </section>
+
         <!-- Storico operazioni (tutti gli ETF del portafoglio) -->
         <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-800 shadow-sm overflow-hidden">
             <div class="px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center gap-x-2 gap-y-2 bg-slate-50 dark:bg-slate-900">
@@ -363,6 +380,25 @@
                 <div id="ops-recap" class="overflow-x-auto"></div>
             </div>
             <p class="px-4 pb-3 text-xs text-slate-500 dark:text-slate-400">Quote e valore d'acquisto di ogni ETF derivano dalle operazioni, con il <strong>costo medio ponderato</strong>: le commissioni di acquisto si sommano al costo, una vendita riduce le quote senza cambiare il prezzo medio. «Saldo iniziale» è la posizione che avevi già inserito, senza data. Clicca su una riga per modificare le operazioni di quell'ETF. La plusvalenza realizzata è lorda (prima delle tasse).</p>
+        </section>
+
+        <!-- Andamento del portafoglio -->
+        <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-800 shadow-sm overflow-hidden">
+            <div class="px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center gap-x-2 gap-y-2 bg-slate-50 dark:bg-slate-900">
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300">Andamento del portafoglio</span>
+                <div class="ml-auto flex items-center gap-1.5">
+                    <button type="button" data-pfr="30" onclick="setPfRange(30)" class="px-2 py-1 text-xs font-semibold rounded-lg">1 mese</button>
+                    <button type="button" data-pfr="90" onclick="setPfRange(90)" class="px-2 py-1 text-xs font-semibold rounded-lg">3 mesi</button>
+                    <button type="button" data-pfr="180" onclick="setPfRange(180)" class="px-2 py-1 text-xs font-semibold rounded-lg">6 mesi</button>
+                    <button type="button" data-pfr="0" onclick="setPfRange(0)" class="px-2 py-1 text-xs font-semibold rounded-lg">Tutto</button>
+                </div>
+            </div>
+            <div class="p-2 sm:p-3 space-y-3">
+                <div id="pf-sum" class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs"></div>
+                <div id="pf-chart" class="w-full"></div>
+                <div id="pf-notes" class="px-1 text-[11px] text-slate-500 dark:text-slate-400 space-y-0.5"></div>
+            </div>
+            <p class="px-4 pb-3 text-xs text-slate-500 dark:text-slate-400">La linea blu è il <strong>valore</strong> del portafoglio (quote possedute in ogni giorno × prezzo di chiusura), quella tratteggiata il <strong>costo</strong> delle quote che possiedi (prezzo medio di carico). La distanza tra le due è la plus/minus latente: se la blu sale mentre la tratteggiata resta ferma, cresce il valore dei prezzi; se salgono insieme, stai versando. La «variazione nel periodo» toglie i versamenti netti fatti in quei giorni. Lo storico dei prezzi è di circa 12 mesi.</p>
         </section>
 
         <!-- Rendimento per ETF -->
@@ -405,6 +441,11 @@
                     <div><label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Codice ISIN *</label><input type="text" id="f-isin" required placeholder="es. IE00B8GKDB10" class="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none uppercase"></div>
                     <div><label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Quote acquistate (0 = watchlist) *</label><input type="number" step="0.0001" min="0" id="f-shares" required placeholder="100" class="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"></div>
                     <div><label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Valore d'acquisto (€ per quota)</label><input type="number" step="0.001" min="0" id="f-buyPrice" placeholder="66.82" class="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"></div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Aliquota fiscale % (facoltativa)</label>
+                    <input type="text" inputmode="decimal" autocomplete="off" id="f-tax" placeholder="vuoto = 26 azionario / 18 obbligazionario" class="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <p id="f-tax-hint" class="mt-1 text-[11px] text-slate-500 dark:text-slate-400"></p>
                 </div>
                 <p id="f-pos-hint" class="hidden text-xs text-sky-700 dark:text-sky-300">Quote e valore d'acquisto si calcolano dalle <strong>Operazioni</strong>: clicca su «Quote» nella tabella, oppure sul tasto Operazioni.</p>
                 <p class="text-xs text-slate-500 dark:text-slate-400">Prezzo, High52, Low52, grafico (Yahoo Finance) e TER, cedola, aliquota (justETF) vengono recuperati automaticamente al salvataggio.</p>
@@ -524,6 +565,7 @@
         // --- INIZIALIZZAZIONE ---
         window.addEventListener('DOMContentLoaded', () => {
             initTheme();
+            setPrivacyBtn();
             applyViewMode();
             window.addEventListener('resize', applyViewMode);
             loadPortfolio();
@@ -567,7 +609,34 @@
             const item = portfolio.find(e => e.id === id);
             if (item && confirm(`Rimuovere ${item.ticker} dal portafoglio?`)) deleteETF(id);
         }
-        function fmtQty(v) { return Number(v || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 4 }); }
+        // Aliquota fiscale: se impostata a mano per l'ETF vale quella, altrimenti 26% azionario / 18% obbligazionario
+        function taxRateOf(item) {
+            const m = item && item.taxManual;
+            if (m !== null && m !== undefined && m !== '' && Number.isFinite(Number(m)) && Number(m) >= 0 && Number(m) <= 100) return Number(m) / 100;
+            return item && item.assetType === 'OBBLIGAZIONARIO' ? 0.18 : 0.26;
+        }
+        function fmtTaxPct(rate) { return parseFloat((rate * 100).toFixed(2)).toLocaleString('it-IT'); }
+        // Modalità privacy: importi e quote sostituiti da puntini (solo a schermo; i dati restano gli stessi)
+        let privacyOn = false;
+        try { privacyOn = localStorage.getItem('etf_privacy') === '1'; } catch (e) {}
+        const PRIV_MASK = '•••••';
+        function fmtQty(v) { if (privacyOn) return '•••'; return Number(v || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 4 }); }
+        function setPrivacyBtn() {
+            const b = document.getElementById('btn-privacy');
+            if (!b) return;
+            b.title = privacyOn ? 'Mostra importi' : 'Nascondi importi';
+            b.className = 'p-2 rounded-xl border ' + (privacyOn ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800');
+            b.innerHTML = `<i data-lucide="${privacyOn ? 'eye-off' : 'eye'}" class="w-4 h-4"></i>`;
+            if (window.lucide) lucide.createIcons();
+        }
+        function togglePrivacy() {
+            privacyOn = !privacyOn;
+            try { localStorage.setItem('etf_privacy', privacyOn ? '1' : '0'); } catch (e) {}
+            setPrivacyBtn();
+            renderAll();
+            if (tradesItemId && !document.getElementById('trades-modal').classList.contains('hidden')) renderTrades();
+            if (window.lucide) lucide.createIcons();
+        }
 
         function buildEtfCard(item) {
             const m = calculateMetrics(item);
@@ -603,7 +672,7 @@
                         ${row('Valore di carico', fmtCurrency(m.carico))}
                         ${row('Differenza lorda', fmtCurrency(m.diffLorda), lorCol)}
                         ${row('Differenza netta', fmtCurrency(m.diffNetta), netCol)}
-                        ${row('Tasse', Math.round(m.taxRate * 100) + '% (' + fmtCurrency(m.tasse) + ')')}
+                        ${row('Tasse', fmtTaxPct(m.taxRate) + '% (' + fmtCurrency(m.tasse) + ')')}
                         ${row('Min / Max 52', fmtPrice(item.low52) + ' — ' + fmtPrice(item.high52))}
                         ${row('Variazione giorno', (item.change >= 0 ? '+' : '') + fmtPrice(item.change), item.change >= 0 ? up : down)}
                         ${row('TER', fmtNumber(item.ter, 2) + '%')}
@@ -1023,6 +1092,8 @@
             it.isin = cleanStr(it.isin, 20).toUpperCase();
             ['shares', 'buyPrice', 'currPrice', 'high52', 'low52', 'change', 'ter'].forEach(k => { const n = Number(it[k]); it[k] = Number.isFinite(n) ? n : 0; });
             if (!['AZIONARIO', 'OBBLIGAZIONARIO'].includes(it.assetType)) it.assetType = 'AZIONARIO';
+            { const tm = Number(it.taxManual); if (it.taxManual === null || it.taxManual === undefined || it.taxManual === '' || !Number.isFinite(tm) || tm < 0 || tm > 100) delete it.taxManual; else it.taxManual = tm; }
+            { const ta = Number(it.taxAuto); if (!Number.isFinite(ta) || it.taxAuto === null || it.taxAuto === '') delete it.taxAuto; else it.taxAuto = ta; }
             if (!['Accumulo', 'Mensile', 'Trimestrale', 'Semestrale', 'Annuale'].includes(it.dividend)) it.dividend = 'Accumulo';
             if (!Array.isArray(it.history)) it.history = [];
             ensureTrades(it);
@@ -1099,7 +1170,7 @@
             }
             
             // Tasse: 26% per azionario, 18% per obbligazionario
-            const taxRate = item.assetType === 'OBBLIGAZIONARIO' ? 0.18 : 0.26;
+            const taxRate = taxRateOf(item);
             const tasse = diffLorda > 0 ? diffLorda * taxRate : 0;
 
             // Differenza netta: =IF(("VALORE ATTUALE"-"VALORE DI CARICO")>0; ("VALORE ATTUALE"-"VALORE DI CARICO")*(1-"TASSE"); ("VALORE ATTUALE"-"VALORE DI CARICO"))
@@ -1244,13 +1315,13 @@
         }
 
         function renderInfo(item, info, state, errMsg) {
-            const taxPct = item.assetType === 'OBBLIGAZIONARIO' ? 18 : 26;
+            const taxPct = taxRateOf(item) * 100;
             document.getElementById('info-modal-title').textContent = (info && info.name) || item.ticker;
             document.getElementById('info-modal-sub').textContent = `${item.ticker} · ${item.isin}`;
             const kv = (k, v) => v ? `<div><dt class="text-slate-500 dark:text-slate-400">${escHtml(k)}</dt><dd class="font-semibold text-slate-900 dark:text-white break-words">${escHtml(v)}</dd></div>` : '';
             const quick = [
                 kv('Tipo', item.assetType === 'OBBLIGAZIONARIO' ? 'Obbligazionario' : 'Azionario'),
-                kv('Tassazione plusvalenze', taxPct + '%'),
+                kv('Tassazione plusvalenze', fmtTaxPct(taxPct / 100) + '%' + (item.taxManual !== undefined && item.taxManual !== null && item.taxManual !== '' ? ' (impostata da te)' : '')),
                 kv('Cadenza cedola', item.dividend),
                 kv('TER annuo', item.metaOk ? fmtNumber(item.ter, 2) + '%' : '')
             ].join('');
@@ -1355,6 +1426,7 @@
             } catch (e) { histState[t] = { err: e.message || 'errore' }; }
             renderHist();
             renderCedole();
+            renderForecast();
             renderReturns();
         }
 
@@ -1374,7 +1446,7 @@
             }
             renderHist();
         }
-        function fmtHistCell(v) { return v >= 0.1 ? fmtNumber(v, 2) : fmtNumber(v, 4); }
+        function fmtHistCell(v, money) { if (privacyOn && money) return '•••'; return v >= 0.1 ? fmtNumber(v, 2) : fmtNumber(v, 4); }
 
         function renderHist() {
             const body = document.getElementById('hist-body');
@@ -1402,7 +1474,7 @@
             }
             if (!c.list.length) { msg(`Nessun dividendo trovato per ${escHtml(item.ticker)}.MI su Yahoo Finance.`); return; }
 
-            const taxRate = item.assetType === 'OBBLIGAZIONARIO' ? 0.18 : 0.26;
+            const taxRate = taxRateOf(item);
             const wanted = document.getElementById('histNet').checked ? 'net' : 'ps';
             const eff = (wanted !== 'ps' && c.cur === 'EUR' && (item.trades || []).length) ? wanted : 'ps';
             const from = document.getElementById('histFrom').value, to = document.getElementById('histTo').value;
@@ -1437,10 +1509,10 @@
                     yearSum += v; n += e.dates.length;
                     const future = ym >= now;
                     const tip = e.dates.map(([d, a, sh]) => `Stacco ${fmtDate(d)}: ${fmtDiv(a)} ${c.cur}/quota` + (sh !== null ? ` × ${fmtQty(sh)} quote` : '')).join(' | ');
-                    cells += `<td title="${escHtml(tip)}" class="border border-slate-300 dark:border-slate-600 min-w-[44px] px-1 py-1.5 text-slate-900 dark:text-slate-50 ${future ? 'bg-sky-200 dark:bg-sky-900/70' : 'bg-[#c6e0a0] dark:bg-emerald-900/60'}">${fmtHistCell(v)}</td>`;
+                    cells += `<td title="${escHtml(tip)}" class="border border-slate-300 dark:border-slate-600 min-w-[44px] px-1 py-1.5 text-slate-900 dark:text-slate-50 ${future ? 'bg-sky-200 dark:bg-sky-900/70' : 'bg-[#c6e0a0] dark:bg-emerald-900/60'}">${fmtHistCell(v, eff !== 'ps')}</td>`;
                 }
                 tot += yearSum;
-                rows += `<tr><td class="${stick}">${y}</td>${cells}<td class="border border-slate-300 dark:border-slate-600 px-2 py-1.5 font-bold bg-amber-50 dark:bg-slate-800 text-slate-900 dark:text-white">${yearSum > 0 ? fmtNumber(yearSum, 2) : ''}</td></tr>`;
+                rows += `<tr><td class="${stick}">${y}</td>${cells}<td class="border border-slate-300 dark:border-slate-600 px-2 py-1.5 font-bold bg-amber-50 dark:bg-slate-800 text-slate-900 dark:text-white">${yearSum > 0 ? (privacyOn && eff !== 'ps' ? '•••' : fmtNumber(yearSum, 2)) : ''}</td></tr>`;
             }
             body.innerHTML = `<table class="w-full border-collapse text-center text-[11px] sm:text-xs whitespace-nowrap">
                 <thead><tr><th class="${stick}">Anno</th>${MESI_IT.map(m => `<th class="${th}">${m}</th>`).join('')}<th class="px-2 py-1.5 font-bold">Totale</th></tr></thead>
@@ -1449,7 +1521,7 @@
             const unitTxt = eff === 'ps' ? `${unit} per quota` : `${unit} netti, con le quote possedute a ogni stacco`;
             sumEl.innerHTML = `<span><strong>${escHtml(item.ticker)}</strong> · importi in ${escHtml(unitTxt)}</span>
                 <span>Cedole nel periodo: <strong>${n}</strong></span>
-                <span>Totale periodo: <strong>${fmtNumber(tot, 2)}</strong></span>
+                <span>Totale periodo: <strong>${privacyOn && eff !== 'ps' ? '•••' : fmtNumber(tot, 2)}</strong></span>
                 <span>Ultimo stacco: <strong>${lastTxt}</strong></span>
                 ${wanted !== 'ps' && eff === 'ps' ? `<span class="text-amber-700 dark:text-amber-400">${c.cur !== 'EUR' ? 'Valuta ' + c.cur + ': mostro l\'importo per quota' : 'Servono quote in portafoglio per stimare l\'incasso: mostro l\'importo per quota'}</span>` : ''}`;
         }
@@ -1618,6 +1690,175 @@
                 : '<p class="py-4 text-center text-xs text-slate-500 dark:text-slate-400">Nessuna operazione registrata.</p>';
         }
 
+        // --- ANDAMENTO DEL PORTAFOGLIO (valore vs costo, dalle operazioni e dai prezzi di chiusura) ---
+        let pfRange = 0;
+        function setPfRange(days) { pfRange = days; renderPfChart(); }
+        function buildPfSeries() {
+            const items = portfolio.filter(i => (i.trades || []).length && i.history && i.history.length > 1 && i.histDates && i.histDates.length === i.history.length);
+            if (!items.length) return null;
+            const set = new Set();
+            items.forEach(i => i.histDates.forEach(d => set.add(d)));
+            const dates = [...set].sort();
+            const prepared = items.map(i => sortedTrades(i.trades));
+            const ptr = items.map(() => 0);
+            const points = dates.map((D, k) => {
+                let val = 0, cost = 0;
+                items.forEach((it, j) => {
+                    while (ptr[j] + 1 < it.histDates.length && it.histDates[ptr[j] + 1] <= D) ptr[j]++;
+                    const price = (k === dates.length - 1 && it.currPrice > 0) ? it.currPrice : it.history[ptr[j]];
+                    const pos = computePosition(prepared[j].filter(t => !t.date || t.date <= D));
+                    val += pos.shares * price; cost += pos.cost;
+                });
+                return { d: D, val, cost };
+            });
+            return { points, items };
+        }
+        function renderPfChart() {
+            const box = document.getElementById('pf-chart');
+            if (!box) return;
+            document.querySelectorAll('[data-pfr]').forEach(b => {
+                const on = Number(b.dataset.pfr) === pfRange;
+                b.className = 'px-2 py-1 text-xs font-semibold rounded-lg ' + (on ? 'bg-indigo-600 text-white' : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200');
+            });
+            const sumEl = document.getElementById('pf-sum'), notes = document.getElementById('pf-notes');
+            const ser = buildPfSeries();
+            if (!ser || ser.points.length < 2) {
+                sumEl.innerHTML = ''; notes.innerHTML = '';
+                box.innerHTML = '<p class="py-6 text-center text-xs text-slate-500 dark:text-slate-400">Servono almeno un acquisto registrato (Operazioni) e lo storico dei prezzi (premi «Aggiorna»).</p>';
+                return;
+            }
+            let pts = ser.points;
+            if (pfRange) {
+                const cut = new Date(Date.parse(pts[pts.length - 1].d) - pfRange * 864e5).toISOString().slice(0, 10);
+                const f = pts.filter(p => p.d >= cut);
+                if (f.length >= 2) pts = f;
+            }
+            const first = pts[0], last = pts[pts.length - 1];
+            // versamenti netti nel periodo (esclusa la data di partenza): acquisti − vendite
+            let flows = 0;
+            ser.items.forEach(i => (i.trades || []).forEach(t => {
+                if (!t.date || t.date <= first.d || t.date > last.d) return;
+                flows += t.type === 'buy' ? t.qty * t.price + t.fee : -(t.qty * t.price - t.fee);
+            }));
+            const change = last.val - first.val - flows;
+            const col = v => v >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400';
+            const sgn = v => (v > 0 ? '+' : '') + fmtCurrency(v);
+            const tile = (k, v, cls = '') => `<div class="rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 px-3 py-2"><div class="text-slate-500 dark:text-slate-400">${k}</div><div class="font-bold text-sm ${cls || 'text-slate-900 dark:text-white'}">${v}</div></div>`;
+            const lat = last.val - last.cost;
+            sumEl.innerHTML = tile('Valore attuale', fmtCurrency(last.val)) + tile('Costo delle quote', fmtCurrency(last.cost)) +
+                tile('Plus/minus latente', `${sgn(lat)}${last.cost > 0 ? ` <span class="font-semibold">(${lat >= 0 ? '+' : '−'}${fmtNumber(Math.abs(lat / last.cost * 100), 2)}%)</span>` : ''}`, col(lat)) +
+                tile('Variazione nel periodo', `${sgn(change)}${first.val > 0 ? ` <span class="font-semibold">(${change >= 0 ? '+' : '−'}${fmtNumber(Math.abs(change / first.val * 100), 2)}%)</span>` : ''}`, col(change));
+
+            const W = 560, H = 220, pl = 54, pr = 10, pt = 22, pb = 22, plotW = W - pl - pr;
+            const vals = pts.flatMap(p => [p.val, p.cost]);
+            let mn = Math.min(...vals), mx = Math.max(...vals);
+            const pad = (mx - mn) * 0.08 || mx * 0.02 || 1; mn -= pad; mx += pad;
+            const X = i => pl + i / (pts.length - 1) * plotW, Y = v => pt + (1 - (v - mn) / (mx - mn)) * (H - pt - pb);
+            const line = k => pts.map((p, i) => `${X(i).toFixed(1)},${Y(p[k]).toFixed(1)}`).join(' ');
+            const yl = v => privacyOn ? '•••' : (Math.abs(v) >= 1000 ? fmtNumber(v / 1000, 1) + 'k' : fmtNumber(v, 0));
+            box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" class="text-slate-500 dark:text-slate-400 select-none" style="touch-action:pan-y;max-height:300px">
+                <line x1="${pl}" x2="${W - pr}" y1="${Y(mx - pad)}" y2="${Y(mx - pad)}" stroke="currentColor" stroke-opacity=".2" stroke-dasharray="3"/>
+                <line x1="${pl}" x2="${W - pr}" y1="${Y(mn + pad)}" y2="${Y(mn + pad)}" stroke="currentColor" stroke-opacity=".2" stroke-dasharray="3"/>
+                <text x="${pl - 4}" y="${Y(mx - pad) + 3}" text-anchor="end" font-size="10" fill="currentColor">${yl(mx - pad)}</text>
+                <text x="${pl - 4}" y="${Y(mn + pad) + 3}" text-anchor="end" font-size="10" fill="currentColor">${yl(mn + pad)}</text>
+                <text x="${pl}" y="${H - 6}" font-size="10" fill="currentColor">${fmtDate(first.d)}</text>
+                <text x="${W - pr}" y="${H - 6}" font-size="10" text-anchor="end" fill="currentColor">${fmtDate(last.d)}</text>
+                <polygon points="${X(0).toFixed(1)},${H - pb} ${line('val')} ${X(pts.length - 1).toFixed(1)},${H - pb}" fill="#1155cc" fill-opacity=".07"/>
+                <polyline fill="none" stroke="#d97706" stroke-width="1.6" stroke-dasharray="4 3" stroke-linejoin="round" points="${line('cost')}"/>
+                <polyline fill="none" stroke="#1155cc" stroke-width="1.8" stroke-linejoin="round" points="${line('val')}"/>
+                <g id="pf-hv" style="display:none"><line id="pf-hv-l" y1="${pt}" y2="${H - pb}" stroke="currentColor" stroke-opacity=".5"/><circle id="pf-hv-d" r="3.5" fill="#1155cc"/></g>
+                <text id="pf-hv-t" x="${W / 2}" y="12" font-size="11" text-anchor="middle" fill="currentColor" font-weight="600"></text>
+                <rect id="pf-area" x="0" y="0" width="${W}" height="${H}" fill="transparent"/>
+            </svg>
+            <div class="flex justify-center gap-4 text-[11px] text-slate-500 dark:text-slate-400 mt-1"><span><span class="inline-block w-4 h-0.5 align-middle bg-[#1155cc]"></span> Valore</span><span><span class="inline-block w-4 align-middle border-t-2 border-dashed border-[#d97706]"></span> Costo delle quote</span></div>`;
+            const svg = box.querySelector('svg'), area = svg.querySelector('#pf-area');
+            const show = ev => {
+                const q = svg.createSVGPoint(); q.x = ev.clientX; q.y = ev.clientY;
+                const px = q.matrixTransform(svg.getScreenCTM().inverse()).x;
+                const i = Math.max(0, Math.min(pts.length - 1, Math.round((px - pl) / plotW * (pts.length - 1))));
+                const p = pts[i];
+                svg.querySelector('#pf-hv').style.display = '';
+                const l = svg.querySelector('#pf-hv-l'); l.setAttribute('x1', X(i)); l.setAttribute('x2', X(i));
+                const d = svg.querySelector('#pf-hv-d'); d.setAttribute('cx', X(i)); d.setAttribute('cy', Y(p.val));
+                svg.querySelector('#pf-hv-t').textContent = `${fmtDate(p.d)} · Valore ${fmtCurrency(p.val)} · Costo ${fmtCurrency(p.cost)} · ${sgn(p.val - p.cost)}`;
+            };
+            area.addEventListener('pointermove', show);
+            area.addEventListener('pointerdown', show);
+            area.addEventListener('pointerleave', ev => { if (ev.pointerType === 'mouse') { svg.querySelector('#pf-hv').style.display = 'none'; svg.querySelector('#pf-hv-t').textContent = ''; } });
+            const n = [];
+            if (ser.items.some(i => i.trades.some(t => !t.date))) n.push('«Saldo iniziale» senza data: le quote sono considerate possedute dall\'inizio del periodo. Aggiungi la data vera dalle Operazioni per un andamento più fedele.');
+            const missing = portfolio.filter(i => (i.trades || []).length && !ser.items.includes(i)).map(i => i.ticker);
+            if (missing.length) n.push('Senza storico prezzi (premi «Aggiorna»), non inclusi: ' + missing.join(', ') + '.');
+            notes.innerHTML = n.map(x => `<div>${escHtml(x)}</div>`).join('');
+        }
+
+        // --- CEDOLE PREVISTE (ultimi 12 mesi ripetuti nei prossimi 12, con le quote attuali) ---
+        function renderForecast() {
+            const body = document.getElementById('fc-body');
+            if (!body) return;
+            if (!histCache) loadHistCache();
+            const net = document.getElementById('fcNet').checked;
+            const sumEl = document.getElementById('fc-sum'), notes = document.getElementById('fc-notes');
+            const items = portfolio.filter(i => i.shares > 0 && i.dividend !== 'Accumulo');
+            if (!items.length) {
+                sumEl.innerHTML = ''; notes.innerHTML = '';
+                body.innerHTML = '<p class="py-6 text-center text-xs text-slate-500 dark:text-slate-400">Nessun ETF a cedola con quote possedute in questo portafoglio.</p>';
+                return;
+            }
+            items.forEach(i => { if (!histCache[i.ticker] && !histState[i.ticker]) setTimeout(() => loadHist(i, false), 0); });
+            const now = new Date();
+            const months = Array.from({ length: 12 }, (_, k) => { const dt = new Date(now.getFullYear(), now.getMonth() + 1 + k, 1); return { mi: dt.getMonth(), label: MESI_IT[dt.getMonth()] + ' ' + String(dt.getFullYear()).slice(2) }; });
+            const todayIso = now.toLocaleDateString('sv-SE');
+            const cutoff = new Date(now.getTime() - 365 * 864e5).toLocaleDateString('sv-SE');
+            const expected = { Mensile: 12, Trimestrale: 4, Semestrale: 2, Annuale: 1 };
+            const rows = items.map(item => {
+                const hc = histCache[item.ticker], st = histState[item.ticker];
+                if (!hc) return { item, state: (st && st.err) ? 'err' : 'loading' };
+                const fx = hc.cur === 'EUR' ? 1 : (fxRates[hc.cur] ? fxRates[hc.cur].rate : null);
+                if (fx === null) return { item, state: 'fx' };
+                const tax = taxRateOf(item);
+                const ev = hc.list.filter(([d]) => d > cutoff && d <= todayIso);
+                const perMonth = Array(12).fill(0);
+                let gross = 0;
+                ev.forEach(([d, a]) => {
+                    const mi = Number(d.slice(5, 7)) - 1;
+                    const idx = months.findIndex(m => m.mi === mi);
+                    const amt = a * item.shares * fx;
+                    gross += amt;
+                    perMonth[idx] += net ? amt * (1 - tax) : amt;
+                });
+                const yieldPct = item.currPrice > 0 ? (gross / (item.shares * item.currPrice) * 100) : null;
+                return { item, state: 'ok', perMonth, total: perMonth.reduce((a, b) => a + b, 0), yieldPct, count: ev.length, short: ev.length < (expected[item.dividend] || 1) };
+            });
+            const ok = rows.filter(r => r.state === 'ok');
+            const monthTot = months.map((_, k) => ok.reduce((a, r) => a + r.perMonth[k], 0));
+            const grand = monthTot.reduce((a, b) => a + b, 0);
+            const pending = rows.filter(r => r.state === 'loading').length;
+            const heldValue = ok.reduce((a, r) => a + r.item.shares * r.item.currPrice, 0);
+            const grossGrand = ok.reduce((a, r) => a + (r.yieldPct !== null ? r.yieldPct / 100 * r.item.shares * r.item.currPrice : 0), 0);
+            const tile = (k, v) => `<div class="rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 px-3 py-2"><div class="text-slate-500 dark:text-slate-400">${k}</div><div class="font-bold text-sm text-slate-900 dark:text-white">${v}</div></div>`;
+            sumEl.innerHTML = tile('Totale stimato 12 mesi' + (net ? ' (netto)' : ' (lordo)'), pending && !ok.length ? '…' : fmtCurrency(grand)) +
+                tile('Media mensile', pending && !ok.length ? '…' : fmtCurrency(grand / 12)) +
+                tile('Rendimento da dividendo (lordo)', heldValue > 0 ? fmtNumber(grossGrand / heldValue * 100, 2) + '%' : '—');
+            const mny = v => v > 0 ? (privacyOn ? '•••' : fmtNumber(v, 2)) : '';
+            const th = 'px-1.5 py-1.5 text-slate-500 dark:text-slate-400 font-medium';
+            const stick = 'sticky left-0 z-10 bg-white dark:bg-slate-900 px-2 py-1.5 text-left';
+            body.innerHTML = `<table class="w-full border-collapse text-center text-[11px] sm:text-xs whitespace-nowrap">
+                <thead><tr><th class="${stick} font-medium text-slate-500 dark:text-slate-400">ETF</th>${months.map(m => `<th class="${th}">${m.label}</th>`).join('')}<th class="px-2 py-1.5 font-bold">Totale</th><th class="${th}">Rend. lordo</th></tr></thead>
+                <tbody>${rows.map(r => r.state !== 'ok'
+                    ? `<tr><td class="${stick} font-semibold">${escHtml(r.item.ticker)}</td><td colspan="14" class="py-1.5 text-left px-2 text-slate-500 dark:text-slate-400">${r.state === 'loading' ? 'Recupero dello storico…' : r.state === 'err' ? 'Storico dividendi non disponibile' : 'Cambio non disponibile'}</td></tr>`
+                    : `<tr class="border-t border-slate-200 dark:border-slate-800"><td class="${stick} font-semibold">${escHtml(r.item.ticker)}${r.short ? ` <span class="text-amber-600" title="Nell'ultimo anno ho trovato ${r.count} cedole, meno di quelle attese per un ETF ${r.item.dividend.toLowerCase()}: storico incompleto o ETF recente, la stima può essere bassa.">⚠</span>` : ''}</td>
+                        ${r.perMonth.map(v => `<td class="border border-slate-200 dark:border-slate-700 px-1.5 py-1.5 ${v > 0 ? 'bg-sky-100 dark:bg-sky-900/50 text-slate-900 dark:text-slate-50' : ''}">${mny(v)}</td>`).join('')}
+                        <td class="px-2 py-1.5 font-bold">${privacyOn ? '•••' : fmtNumber(r.total, 2)}</td><td class="px-1.5 py-1.5">${r.yieldPct !== null ? fmtNumber(r.yieldPct, 2) + '%' : '—'}</td></tr>`).join('')}
+                <tr class="border-t-2 border-slate-300 dark:border-slate-600 font-bold"><td class="${stick}">Totale</td>${monthTot.map(v => `<td class="px-1.5 py-1.5">${mny(v)}</td>`).join('')}<td class="px-2 py-1.5">${privacyOn ? '•••' : fmtNumber(grand, 2)}</td><td></td></tr>
+                </tbody></table>`;
+            const n = [];
+            if (pending) n.push(`Recupero dello storico dividendi in corso per ${pending} ETF…`);
+            if (ok.some(r => r.short)) n.push('⚠ Per qualche ETF lo storico dell\'ultimo anno ha meno cedole del previsto: la stima potrebbe essere sottostimata.');
+            n.push('Gli importi sono in euro; le cedole in valuta estera usano il cambio attuale.');
+            notes.innerHTML = n.map(x => `<div>${escHtml(x)}</div>`).join('');
+        }
+
         // --- REPORT RENDIMENTO PER ETF ---
         function divIncomeFor(item, net) {
             if (item.dividend === 'Accumulo') return { state: 'ok', total: 0, flows: [] };
@@ -1628,7 +1869,7 @@
             if (trades.some(t => !t.date) && !first) return { state: 'nodate' };
             const fx = hc.cur === 'EUR' ? 1 : (fxRates[hc.cur] ? fxRates[hc.cur].rate : null);
             if (fx === null) return { state: 'fx' };
-            const taxRate = item.assetType === 'OBBLIGAZIONARIO' ? 0.18 : 0.26;
+            const taxRate = taxRateOf(item);
             const today = new Date().toLocaleDateString('sv-SE');
             const flows = [];
             hc.list.forEach(([dt, amt]) => {
@@ -1840,7 +2081,7 @@
         function cedolaMetrics(item) {
             const cur = item.divCur || 'EUR';
             const fx = cur === 'EUR' ? 1 : (fxRates[cur] ? fxRates[cur].rate : null);
-            const taxRate = item.assetType === 'OBBLIGAZIONARIO' ? 0.18 : 0.26;
+            const taxRate = taxRateOf(item);
             const perShare = item.lastDiv ? item.lastDiv.amount : null;
             const shares = sharesAt(item, item.lastDiv && item.lastDiv.date);
             const lorda = (perShare !== null && fx !== null && shares > 0) ? perShare * shares * fx : null;
@@ -1954,7 +2195,7 @@
                     <td class="py-1 px-2">${auto ? m.cur : `<select onchange="setDivCur('${item.id}', this.value)" class="px-1.5 py-0.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded">${opts}</select>*`}</td>
                     <td class="${cell}">${m.fx !== null ? fmtNumber(m.fx, 4) : 'n/d'}</td>
                     <td class="${cell}" title="${m.shares > 0 ? 'Quote possedute allo stacco: ' + fmtQty(m.shares) : 'Non possedevi quote alla data di stacco'}">${m.lorda !== null ? fmtCurrency(m.lorda) : na}</td>
-                    <td class="${cell} font-bold text-emerald-600 dark:text-emerald-400" title="Tasse ${Math.round(m.taxRate * 100)}%">${m.netta !== null ? fmtCurrency(m.netta) : na}</td>
+                    <td class="${cell} font-bold text-emerald-600 dark:text-emerald-400" title="Tasse ${fmtTaxPct(m.taxRate)}%">${m.netta !== null ? fmtCurrency(m.netta) : na}</td>
                     <td class="${cell}">${dateCell(item.lastDiv && item.lastDiv.date)}</td>
                     ${auto ? `<td class="${cell}">${dateCell(item.payDate)}</td>` : `<td class="py-1 px-2"><input type="date" value="${item.payDate || ''}" onchange="setPayDate('${item.id}', this.value)" class="px-1.5 py-0.5 bg-amber-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded">${item.payDate ? '<br>' + dateBadge(item.payDate) : ''}</td>`}
                 </tr>`;
@@ -1996,7 +2237,7 @@
         }
         function cedolaEventMetrics(ev) {
             const fx = ev.cur === 'EUR' ? 1 : (fxRates[ev.cur] ? fxRates[ev.cur].rate : null);
-            const taxRate = ev.item.assetType === 'OBBLIGAZIONARIO' ? 0.18 : 0.26;
+            const taxRate = taxRateOf(ev.item);
             const shares = sharesAt(ev.item, ev.date);
             const lorda = (fx !== null && shares > 0) ? ev.amount * shares * fx : null;
             return { fx, taxRate, lorda, netta: lorda !== null ? lorda * (1 - taxRate) : null, shares };
@@ -2037,7 +2278,7 @@
                     <td class="${cell}">${ev.cur}</td>
                     <td class="${cell}">${m.fx !== null ? fmtNumber(m.fx, 4) : 'n/d'}</td>
                     <td class="${cell}" title="${m.shares > 0 ? 'Quote possedute allo stacco: ' + fmtQty(m.shares) : 'Non possedevi quote alla data di stacco'}">${m.lorda !== null ? fmtCurrency(m.lorda) : na}</td>
-                    <td class="${cell} font-bold text-emerald-600 dark:text-emerald-400" title="Tasse ${Math.round(m.taxRate * 100)}%">${m.netta !== null ? fmtCurrency(m.netta) : na}</td>
+                    <td class="${cell} font-bold text-emerald-600 dark:text-emerald-400" title="Tasse ${fmtTaxPct(m.taxRate)}%">${m.netta !== null ? fmtCurrency(m.netta) : na}</td>
                     <td class="${cell}">${dateCell(ev.date)}</td>
                     <td class="${cell}">${ev.pay ? dateCell(ev.pay) : '<span title="Data di pagamento non disponibile">n/d</span>'}</td>
                 </tr>`;
@@ -2089,6 +2330,8 @@
             renderCedole();
             renderHist();
             renderOps();
+            renderForecast();
+            renderPfChart();
             renderReturns();
         }
 
@@ -2330,13 +2573,13 @@
                         </td>
 
                         <!-- 14. Differenza netta (=IF((Valore attuale - Valore di carico)>0; (Valore attuale - Valore di carico)*(1-Tasse); (Valore attuale - Valore di carico))) -->
-                        <td class="py-2 px-3 ${netTextClass}" title="Tasse applicate (${Math.round(m.taxRate * 100)}%): ${fmtCurrency(m.tasse)}">
+                        <td class="py-2 px-3 ${netTextClass}" title="Tasse applicate (${fmtTaxPct(m.taxRate)}%): ${fmtCurrency(m.tasse)}">
                             ${fmtCurrency(m.diffNetta)}
                         </td>
 
                         <!-- 15. Tasse (Aliquota 18% o 26%) -->
                         <td class="py-2 px-2.5 text-slate-900 dark:text-slate-100" title="Imposta stimata su plusvalenza: ${fmtCurrency(m.tasse)}">
-                            ${Math.round(m.taxRate * 100)}%
+                            ${fmtTaxPct(m.taxRate)}%
                         </td>
 
                         <!-- 16. Cadenza Cedola -->
@@ -2658,6 +2901,9 @@
             fs.value = item ? item.shares : '';
             fp.value = item && item.buyPrice > 0 ? item.buyPrice : '';
             fs.disabled = fp.disabled = !!item; // per un ETF esistente si cambiano dalle Operazioni
+            document.getElementById('f-tax').value = item && item.taxManual !== undefined && item.taxManual !== null ? String(item.taxManual).replace('.', ',') : '';
+            document.getElementById('f-tax-hint').textContent = item && item.taxAuto !== undefined && item.taxAuto !== null
+                ? `justETF indica per l'Italia: ${fmtNumber(item.taxAuto, 2)}%. Verifica l'aliquota con la scheda dell'emittente o con il tuo consulente.` : "Se la lasci vuota, l'app usa 26% (azionario) o 18% (obbligazionario).";
             document.getElementById('f-pos-hint').classList.toggle('hidden', !item);
             const modal = document.getElementById('etf-modal');
             modal.classList.remove('hidden');
@@ -2676,6 +2922,9 @@
             const existing = id ? portfolio.find(x => x.id === id) : null;
             const ticker = document.getElementById('f-ticker').value.toUpperCase().trim();
             const isin = document.getElementById('f-isin').value.toUpperCase().trim();
+            const taxRaw = document.getElementById('f-tax').value.trim().replace(',', '.');
+            const taxVal = taxRaw === '' ? null : Number(taxRaw);
+            if (taxVal !== null && (!Number.isFinite(taxVal) || taxVal < 0 || taxVal > 100)) { showToast('Aliquota non valida: inserisci un numero tra 0 e 100'); return; }
             const btn = document.getElementById('btn-save');
             btn.disabled = true; btn.textContent = 'Recupero dati...';
             try {
@@ -2686,6 +2935,7 @@
                 }
                 const item = existing || { id: Date.now().toString(), ter: 0, dividend: 'Accumulo', assetType: 'AZIONARIO', change: 0, history: [], metaOk: false };
                 Object.assign(item, { ticker, isin });
+                if (taxVal === null) delete item.taxManual; else item.taxManual = taxVal;
                 if (!existing) {
                     const q = parseFloat(document.getElementById('f-shares').value) || 0, pr = parseFloat(document.getElementById('f-buyPrice').value) || 0;
                     item.trades = q > 0 ? [{ id: newTradeId(), date: '', type: 'buy', qty: q, price: pr, fee: 0 }] : [];
@@ -3026,7 +3276,7 @@
         function applyJustEtf(item, info) {
             if (info.ter !== null) item.ter = info.ter;
             if (info.dividend) item.dividend = info.dividend;
-            if (info.taxPct !== null) item.assetType = info.taxPct >= 26 ? 'AZIONARIO' : 'OBBLIGAZIONARIO';
+            if (info.taxPct !== null) { item.assetType = info.taxPct >= 26 ? 'AZIONARIO' : 'OBBLIGAZIONARIO'; item.taxAuto = info.taxPct; }
             item.fundCur = info.fundCur || '';
             if (!item.divCurLocked) item.divCur = info.fundCur || item.divCur || 'EUR';
             item.metaOk = true;
@@ -3076,6 +3326,7 @@
 
         // --- FORMATTAZIONE E UTILITÀ ---
         function fmtCurrency(val) {
+            if (privacyOn) return PRIV_MASK + ' €';
             const num = Number(val) || 0;
             return num.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
         }
