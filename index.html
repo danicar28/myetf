@@ -412,7 +412,7 @@
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
-            <div id="chart-modal-body" class="w-full h-56 bg-slate-50 dark:bg-slate-950 rounded-xl p-4 border border-slate-200 dark:border-slate-800 flex items-center justify-center">
+            <div id="chart-modal-body" class="w-full h-64 sm:h-72 bg-slate-50 dark:bg-slate-950 rounded-xl p-4 border border-slate-200 dark:border-slate-800 flex items-center justify-center">
                 <!-- SVG grande generato via JS -->
             </div>
         </div>
@@ -2370,60 +2370,144 @@
                 sub.textContent = 'Nessun dato reale disponibile.';
                 body.innerHTML = `<p class="text-sm text-slate-500 dark:text-slate-400 text-center">${item.err ? 'Ultimo errore: ' + item.err : (getProxyPrefix() ? 'Dati in arrivo...' : 'Per scaricare i dati imposta il proxy personale nel campo in alto.')}<br>Premi "Aggiorna Borsa di Milano" per riprovare.</p>`;
             } else {
-                const W = 480, H = 200, pl = 46, pr = 8, pt = 10, pb = 20;
-                const min = Math.min(...h), max = Math.max(...h), rng = (max - min) || 1;
-                const x = i => pl + i / (h.length - 1) * (W - pl - pr);
-                const y = v => pt + (1 - (v - min) / rng) * (H - pt - pb);
-                const pts = h.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
-                const ch = (h[h.length - 1] - h[0]) / h[0] * 100;
-                // Marker delle operazioni: sulla prima seduta con data >= quella dell'operazione (le operazioni fuori dal periodo non si mostrano)
+                const W = 480, H = 200, pl = 46, pr = 8, pt = 22, pb = 20, plotW = W - pl - pr;
+                const n = h.length;
+                const ch = (h[n - 1] - h[0]) / h[0] * 100;
+                // Marker delle operazioni: sulla prima seduta con data >= quella dell'operazione (quelle fuori periodo non si mostrano)
                 const marks = [];
                 let before = 0;
                 (item.trades || []).forEach(t => {
                     if (!t.date) return;
                     if (t.date < d[0]) { before++; return; }
                     let i = d.findIndex(dd => dd >= t.date);
-                    if (i < 0) { if (Date.parse(t.date) - Date.parse(d[d.length - 1]) > 7 * 864e5) return; i = d.length - 1; }
+                    if (i < 0) { if (Date.parse(t.date) - Date.parse(d[n - 1]) > 7 * 864e5) return; i = n - 1; }
                     marks.push({ i, t });
                 });
-                const markSvg = marks.map(({ i, t }) => {
-                    const cx = x(i), cy = y(h[i]);
-                    return t.type === 'buy'
-                        ? `<polygon points="${(cx - 3.5).toFixed(1)},${(cy + 7).toFixed(1)} ${(cx + 3.5).toFixed(1)},${(cy + 7).toFixed(1)} ${cx.toFixed(1)},${(cy + 1.5).toFixed(1)}" fill="#16a34a" stroke="#fff" stroke-width=".6" pointer-events="none"/>`
-                        : `<polygon points="${(cx - 3.5).toFixed(1)},${(cy - 7).toFixed(1)} ${(cx + 3.5).toFixed(1)},${(cy - 7).toFixed(1)} ${cx.toFixed(1)},${(cy - 1.5).toFixed(1)}" fill="#dc2626" stroke="#fff" stroke-width=".6" pointer-events="none"/>`;
-                }).join('');
-                body.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="100%" class="text-slate-500 dark:text-slate-400 select-none" style="overflow:visible">
-                    <line x1="${pl}" x2="${W - pr}" y1="${y(max)}" y2="${y(max)}" stroke="currentColor" stroke-opacity=".25" stroke-dasharray="3"/>
-                    <line x1="${pl}" x2="${W - pr}" y1="${y(min)}" y2="${y(min)}" stroke="currentColor" stroke-opacity=".25" stroke-dasharray="3"/>
-                    <text x="${pl - 4}" y="${y(max) + 3}" text-anchor="end" font-size="10" fill="currentColor">${fmtPrice(max)}</text>
-                    <text x="${pl - 4}" y="${y(min) + 3}" text-anchor="end" font-size="10" fill="currentColor">${fmtPrice(min)}</text>
-                    <text x="${pl}" y="${H - 5}" font-size="10" fill="currentColor">${fmtDate(d[0])}</text>
-                    <text x="${W - pr}" y="${H - 5}" font-size="10" text-anchor="end" fill="currentColor">${fmtDate(d[d.length - 1])}</text>
-                    <polyline fill="none" stroke="#1155cc" stroke-width="1.6" stroke-linejoin="round" points="${pts}"/>
-                    ${markSvg}
-                    <line id="hv-line" y1="${pt}" y2="${H - pb}" stroke="currentColor" stroke-opacity=".5" style="display:none"/>
-                    <circle id="hv-dot" r="3.5" fill="#1155cc" style="display:none"/>
-                    <text id="hv-txt" x="${W / 2}" y="${pt + 2}" font-size="11" text-anchor="middle" fill="currentColor" font-weight="600"></text>
-                    <rect id="hv-area" x="0" y="0" width="${W}" height="${H}" fill="transparent" style="touch-action:none"/>
-                </svg>`;
-                const svg = body.querySelector('svg');
-                const move = ev => {
-                    // Coordinate del puntatore nel sistema del grafico (tiene conto dei margini vuoti dovuti al ridimensionamento)
-                    const pt0 = svg.createSVGPoint(); pt0.x = ev.clientX; pt0.y = ev.clientY;
-                    const px = pt0.matrixTransform(svg.getScreenCTM().inverse()).x;
-                    const i = Math.max(0, Math.min(h.length - 1, Math.round((px - pl) / (W - pl - pr) * (h.length - 1))));
-                    const ln = svg.querySelector('#hv-line'), dot = svg.querySelector('#hv-dot');
-                    ln.setAttribute('x1', x(i)); ln.setAttribute('x2', x(i)); ln.style.display = '';
-                    dot.setAttribute('cx', x(i)); dot.setAttribute('cy', y(h[i])); dot.style.display = '';
-                    // se il cursore è vicino a un marker, mostra anche l'operazione
-                    const near = marks.filter(m => Math.abs(x(m.i) - x(i)) <= 4);
-                    const opTxt = near.map(m => `${m.t.type === 'buy' ? '▲ Acquisto' : '▼ Vendita'} ${fmtQty(m.t.qty)} × ${fmtPrice(m.t.price)} €`).join(' · ');
-                    svg.querySelector('#hv-txt').textContent = `${fmtDate(d[i])}: ${fmtPrice(h[i])} €` + (opTxt ? '  ' + opTxt : '');
+
+                // Finestra visibile (in indici, anche frazionari): zoom e scorrimento la modificano
+                const MIN_SPAN = Math.min(8, n - 1);
+                let a = 0, b = n - 1, hover = null;
+                const clampView = () => {
+                    const span = Math.min(n - 1, Math.max(MIN_SPAN, b - a));
+                    a = Math.min(Math.max(a, 0), n - 1 - span); b = a + span;
                 };
-                svg.querySelector('#hv-area').addEventListener('pointermove', move);
-                svg.querySelector('#hv-area').addEventListener('pointerdown', move);
+
+                body.classList.add('relative');
+                body.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="100%" class="text-slate-500 dark:text-slate-400 select-none" style="overflow:visible;touch-action:none;cursor:grab">
+                    <defs><clipPath id="chart-clip"><rect x="${pl}" y="${pt - 6}" width="${plotW}" height="${H - pt - pb + 12}"/></clipPath></defs>
+                    <g id="dyn"></g>
+                    <rect id="hv-area" x="0" y="0" width="${W}" height="${H}" fill="transparent"/>
+                </svg>
+                <div class="absolute top-1.5 right-2 flex items-center gap-1 text-[11px]">
+                    <span id="zoom-lbl" class="px-1.5 text-slate-500 dark:text-slate-400"></span>
+                    <button type="button" id="zm-out" title="Riduci zoom" class="w-6 h-6 rounded-md bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-bold leading-none">−</button>
+                    <button type="button" id="zm-in" title="Aumenta zoom" class="w-6 h-6 rounded-md bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-bold leading-none">+</button>
+                    <button type="button" id="zm-reset" title="Mostra tutto (doppio clic sul grafico)" class="px-2 h-6 rounded-md bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-semibold">Tutto</button>
+                </div>`;
+                const svg = body.querySelector('svg'), area = svg.querySelector('#hv-area'), dyn = svg.querySelector('#dyn');
+
+                const draw = () => {
+                    const i0 = Math.max(0, Math.floor(a)), i1 = Math.min(n - 1, Math.ceil(b));
+                    let mn = Infinity, mx = -Infinity;
+                    for (let i = i0; i <= i1; i++) { if (h[i] < mn) mn = h[i]; if (h[i] > mx) mx = h[i]; }
+                    const pad = (mx - mn) * 0.1 || mx * 0.01;
+                    const lo = mn - pad, rng = (mx + pad - lo) || 1;
+                    const X = i => pl + (i - a) / (b - a) * plotW;
+                    const Y = v => pt + (1 - (v - lo) / rng) * (H - pt - pb);
+                    const span = b - a;
+                    let pts = '';
+                    for (let i = i0; i <= i1; i++) pts += `${X(i).toFixed(1)},${Y(h[i]).toFixed(1)} `;
+                    const dots = span <= 45 ? h.map((v, i) => (i >= i0 && i <= i1) ? `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="1.8" fill="#1155cc"/>` : '').join('') : '';
+                    const tick = (t, anchor) => { const i = Math.round(a + t * span); return `<text x="${pl + t * plotW}" y="${H - 5}" font-size="10" text-anchor="${anchor}" fill="currentColor">${fmtDate(d[i])}</text>`; };
+                    const mk = marks.filter(m => m.i >= a - 0.5 && m.i <= b + 0.5).map(({ i, t }) => {
+                        const cx = X(i), cy = Y(h[i]);
+                        return t.type === 'buy'
+                            ? `<polygon points="${(cx - 3.5).toFixed(1)},${(cy + 7).toFixed(1)} ${(cx + 3.5).toFixed(1)},${(cy + 7).toFixed(1)} ${cx.toFixed(1)},${(cy + 1.5).toFixed(1)}" fill="#16a34a" stroke="#fff" stroke-width=".6"/>`
+                            : `<polygon points="${(cx - 3.5).toFixed(1)},${(cy - 7).toFixed(1)} ${(cx + 3.5).toFixed(1)},${(cy - 7).toFixed(1)} ${cx.toFixed(1)},${(cy - 1.5).toFixed(1)}" fill="#dc2626" stroke="#fff" stroke-width=".6"/>`;
+                    }).join('');
+                    let hv = '';
+                    if (hover !== null && hover >= i0 && hover <= i1) {
+                        const near = marks.filter(m => Math.abs(m.i - hover) * plotW / span <= 4);
+                        const opTxt = near.map(m => `${m.t.type === 'buy' ? '▲ Acquisto' : '▼ Vendita'} ${fmtQty(m.t.qty)} × ${fmtPrice(m.t.price)} €`).join(' · ');
+                        hv = `<line x1="${X(hover)}" x2="${X(hover)}" y1="${pt}" y2="${H - pb}" stroke="currentColor" stroke-opacity=".5"/>
+                              <circle cx="${X(hover)}" cy="${Y(h[hover])}" r="3.5" fill="#1155cc"/>
+                              <text x="${W / 2}" y="12" font-size="11" text-anchor="middle" fill="currentColor" font-weight="600">${fmtDate(d[hover])}: ${fmtPrice(h[hover])} €${opTxt ? '  ' + opTxt : ''}</text>`;
+                    }
+                    dyn.innerHTML = `
+                        <line x1="${pl}" x2="${W - pr}" y1="${Y(mx)}" y2="${Y(mx)}" stroke="currentColor" stroke-opacity=".25" stroke-dasharray="3"/>
+                        <line x1="${pl}" x2="${W - pr}" y1="${Y(mn)}" y2="${Y(mn)}" stroke="currentColor" stroke-opacity=".25" stroke-dasharray="3"/>
+                        <text x="${pl - 4}" y="${Y(mx) + 3}" text-anchor="end" font-size="10" fill="currentColor">${fmtPrice(mx)}</text>
+                        <text x="${pl - 4}" y="${Y(mn) + 3}" text-anchor="end" font-size="10" fill="currentColor">${fmtPrice(mn)}</text>
+                        ${tick(0, 'start')}${tick(1 / 3, 'middle')}${tick(2 / 3, 'middle')}${tick(1, 'end')}
+                        <g clip-path="url(#chart-clip)"><polyline fill="none" stroke="#1155cc" stroke-width="1.6" stroke-linejoin="round" points="${pts}"/>${dots}${mk}</g>
+                        ${hv}`;
+                    const z = (n - 1) / span;
+                    svg.parentNode.querySelector('#zoom-lbl').textContent = z > 1.05 ? '×' + fmtNumber(z, 1) : '';
+                };
+                const toX = (cx, cy) => { const q = svg.createSVGPoint(); q.x = cx; q.y = cy; return q.matrixTransform(svg.getScreenCTM().inverse()).x; };
+                const nearestIdx = px => Math.max(0, Math.min(n - 1, Math.round(a + (px - pl) / plotW * (b - a))));
+                const zoomAt = (px, factor) => {
+                    const anchor = a + (px - pl) / plotW * (b - a);
+                    const span = Math.min(n - 1, Math.max(MIN_SPAN, (b - a) * factor));
+                    a = anchor - (px - pl) / plotW * span; b = a + span;
+                    clampView(); draw();
+                };
+                const resetView = () => { a = 0; b = n - 1; hover = null; draw(); };
+
+                // Rotellina (PC): zoom centrato sul puntatore
+                area.addEventListener('wheel', ev => {
+                    ev.preventDefault();
+                    const dy = Math.max(-200, Math.min(200, ev.deltaMode === 1 ? ev.deltaY * 33 : ev.deltaY));
+                    zoomAt(toX(ev.clientX, ev.clientY), Math.exp(dy * 0.002));
+                }, { passive: false });
+                // Puntatori: un dito/mouse trascinato scorre, due dita zoomano; tocco semplice o passaggio del mouse mostrano il prezzo
+                const ptrs = new Map();
+                let moved = false, startCx = 0;
+                area.addEventListener('pointerdown', ev => {
+                    area.setPointerCapture(ev.pointerId);
+                    ptrs.set(ev.pointerId, { x: toX(ev.clientX, ev.clientY) });
+                    if (ptrs.size > 1) moved = true; else { moved = false; startCx = ev.clientX; }
+                    svg.style.cursor = 'grabbing';
+                });
+                area.addEventListener('pointermove', ev => {
+                    const px = toX(ev.clientX, ev.clientY);
+                    if (!ptrs.size) { if (ev.pointerType === 'mouse') { hover = nearestIdx(px); draw(); } return; }
+                    const prev = ptrs.get(ev.pointerId);
+                    if (!prev) return;
+                    if (ptrs.size === 2) {
+                        const other = [...ptrs.entries()].find(([id]) => id !== ev.pointerId)[1];
+                        const d0 = Math.abs(prev.x - other.x), d1 = Math.abs(px - other.x);
+                        const m0 = (prev.x + other.x) / 2, m1 = (px + other.x) / 2;
+                        if (d0 > 8 && d1 > 8) {
+                            const anchor = a + (m0 - pl) / plotW * (b - a);
+                            const span = Math.min(n - 1, Math.max(MIN_SPAN, (b - a) * d0 / d1));
+                            a = anchor - (m1 - pl) / plotW * span; b = a + span;
+                            clampView(); hover = null; draw();
+                        }
+                    } else if (moved || Math.abs(ev.clientX - startCx) > 3) {
+                        moved = true; hover = null;
+                        const shift = -(px - prev.x) / plotW * (b - a);
+                        a += shift; b += shift; clampView(); draw();
+                    }
+                    prev.x = px;
+                });
+                const endPtr = ev => {
+                    if (!ptrs.has(ev.pointerId)) return;
+                    if (ptrs.size === 1 && !moved && ev.type === 'pointerup') { hover = nearestIdx(toX(ev.clientX, ev.clientY)); draw(); }
+                    ptrs.delete(ev.pointerId);
+                    if (!ptrs.size) svg.style.cursor = 'grab';
+                };
+                area.addEventListener('pointerup', endPtr);
+                area.addEventListener('pointercancel', endPtr);
+                area.addEventListener('pointerleave', ev => { if (ev.pointerType === 'mouse' && !ptrs.size) { hover = null; draw(); } });
+                area.addEventListener('dblclick', resetView);
+                body.querySelector('#zm-in').onclick = () => zoomAt(pl + plotW / 2, 1 / 1.6);
+                body.querySelector('#zm-out').onclick = () => zoomAt(pl + plotW / 2, 1.6);
+                body.querySelector('#zm-reset').onclick = resetView;
+                draw();
                 const upd = item.updatedAt ? new Date(item.updatedAt).toLocaleString('it-IT') : 'n/d';
                 sub.innerHTML = `Chiusure giornaliere reali da Yahoo Finance (${item.ticker}.MI), ${h.length} sedute, ${ch >= 0 ? '+' : ''}${fmtNumber(ch, 1)}% nel periodo. Aggiornato il ${upd}.<br>
+                    Zoom: rotellina o pizzico con due dita; scorri trascinando; doppio clic o «Tutto» per reimpostare.<br>
                     ${marks.length || before ? `<span class="text-emerald-600">▲</span> acquisti, <span class="text-red-600">▼</span> vendite${before ? ` (${before} operazioni precedenti a questo periodo non mostrate)` : ''}.<br>` : ''}
                     ${item.priceSrc === 'borsa' ? `Prezzo attuale: Borsa Italiana, ultimo scambio ${item.priceAt ? escHtml(item.priceAt.split(' ').map((x, i) => i === 0 ? fmtDate(x) : x).join(' ')) : 'n/d'}.` : 'Prezzo attuale: Yahoo Finance, può essere in ritardo' + (item.priceErr ? ` (Borsa Italiana non letta: ${escHtml(item.priceErr)})` : '') + '.'}<br>
                     Verifica: <a class="underline text-blue-600" target="_blank" rel="noopener" href="https://finance.yahoo.com/quote/${encodeURIComponent(item.ticker)}.MI/chart">Yahoo</a> ·
