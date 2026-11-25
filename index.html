@@ -365,6 +365,22 @@
             <p class="px-4 pb-3 text-xs text-slate-500 dark:text-slate-400">Quote e valore d'acquisto di ogni ETF derivano dalle operazioni, con il <strong>costo medio ponderato</strong>: le commissioni di acquisto si sommano al costo, una vendita riduce le quote senza cambiare il prezzo medio. «Saldo iniziale» è la posizione che avevi già inserito, senza data. Clicca su una riga per modificare le operazioni di quell'ETF. La plusvalenza realizzata è lorda (prima delle tasse).</p>
         </section>
 
+        <!-- Rendimento per ETF -->
+        <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-slate-800 shadow-sm overflow-hidden">
+            <div class="px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center gap-x-2 gap-y-2 bg-slate-50 dark:bg-slate-900">
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300">Rendimento per ETF</span>
+                <label class="ml-auto flex items-center gap-1 px-2 py-1 text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg cursor-pointer select-none" title="Applica 26% (azionario) o 18% (obbligazionario) a plusvalenze, realizzi e cedole, come nel resto dell'app">
+                    <input type="checkbox" id="retNet" checked onchange="renderReturns()" class="accent-indigo-600"> Al netto delle tasse
+                </label>
+            </div>
+            <div class="p-2 sm:p-3 space-y-3">
+                <div id="ret-sum" class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs"></div>
+                <div id="ret-body" class="overflow-x-auto"></div>
+                <div id="ret-notes" class="px-1 text-[11px] text-slate-500 dark:text-slate-400 space-y-0.5"></div>
+            </div>
+            <p class="px-4 pb-3 text-xs text-slate-500 dark:text-slate-400"><strong>Rendimento totale</strong> = plus/minus sul capitale (latente sulle quote che hai ancora + realizzata sulle vendite) + cedole incassate. La <strong>%</strong> è il rendimento totale diviso il totale acquistato. L'<strong>annualizzato</strong> è un tasso di rendimento ponderato per i tempi dei versamenti (XIRR): compare solo se tutte le operazioni hanno una data e sono passati almeno 90 giorni dal primo acquisto. Le cedole sono ricavate dallo storico dei dividendi (Yahoo Finance) con le quote possedute allo stacco. Le perdite non compensano le plusvalenze di altri ETF.</p>
+        </section>
+
         <!-- Legenda / Note Metodologiche -->
         <footer class="text-xs text-slate-500 dark:text-slate-400 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 px-1">
             <p>* Dati <strong>Valore Attuale, HIGH52, LOW52 e Grafico 360gg</strong> recuperati per <strong>Borsa Italiana (Milano)</strong>. <strong>Differenza netta</strong>: 26% Azionario, 18% Obbligazionario su plusvalenze.</p>
@@ -1339,6 +1355,7 @@
             } catch (e) { histState[t] = { err: e.message || 'errore' }; }
             renderHist();
             renderCedole();
+            renderReturns();
         }
 
         function reloadHist() {
@@ -1599,6 +1616,112 @@
                     <td class="py-1.5 px-2">${p.shares > 0 ? fmtPrice(p.avg) : '—'}</td><td class="py-1.5 px-2 font-semibold">${p.shares > 0 ? fmtCurrency(p.cost) : '—'}</td>
                     <td class="py-1.5 px-2">${i.trades.length}</td></tr>`; }).join('')}</tbody></table>`
                 : '<p class="py-4 text-center text-xs text-slate-500 dark:text-slate-400">Nessuna operazione registrata.</p>';
+        }
+
+        // --- REPORT RENDIMENTO PER ETF ---
+        function divIncomeFor(item, net) {
+            if (item.dividend === 'Accumulo') return { state: 'ok', total: 0, flows: [] };
+            const hc = histCache && histCache[item.ticker];
+            if (!hc) return { state: (histState[item.ticker] && histState[item.ticker].err) ? 'err' : 'loading' };
+            const trades = item.trades || [];
+            const first = trades.filter(t => t.date).map(t => t.date).sort()[0];
+            if (trades.some(t => !t.date) && !first) return { state: 'nodate' };
+            const fx = hc.cur === 'EUR' ? 1 : (fxRates[hc.cur] ? fxRates[hc.cur].rate : null);
+            if (fx === null) return { state: 'fx' };
+            const taxRate = item.assetType === 'OBBLIGAZIONARIO' ? 0.18 : 0.26;
+            const today = new Date().toLocaleDateString('sv-SE');
+            const flows = [];
+            hc.list.forEach(([dt, amt]) => {
+                if (dt > today || (first && dt < first)) return;
+                const sh = sharesAt(item, dt);
+                if (sh > 0) flows.push({ date: dt, amt: amt * sh * fx * (net ? 1 - taxRate : 1) });
+            });
+            return { state: 'ok', total: flows.reduce((a, f) => a + f.amt, 0), flows };
+        }
+        // Tasso annuo ponderato per i tempi (XIRR), cerca la radice per bisezione
+        function xirr(flows) {
+            if (flows.length < 2 || !flows.some(f => f.amt < 0) || !flows.some(f => f.amt > 0)) return null;
+            const t0 = Date.parse(flows.reduce((m, f) => f.date < m ? f.date : m, flows[0].date));
+            const npv = r => flows.reduce((a, f) => a + f.amt / Math.pow(1 + r, (Date.parse(f.date) - t0) / 864e5 / 365), 0);
+            let lo = -0.99, hi = 10;
+            if (npv(lo) * npv(hi) > 0) return null;
+            for (let k = 0; k < 200; k++) { const mid = (lo + hi) / 2; if (npv(lo) * npv(mid) <= 0) hi = mid; else lo = mid; }
+            return (lo + hi) / 2;
+        }
+        function returnRow(item, net) {
+            const trades = item.trades || [], pos = computePosition(trades), m = calculateMetrics(item);
+            const taxRate = m.taxRate, today = new Date().toLocaleDateString('sv-SE');
+            const unreal = net ? m.diffNetta : m.diffLorda;
+            const real = net && pos.realized > 0 ? pos.realized * (1 - taxRate) : pos.realized;
+            const div = divIncomeFor(item, net);
+            const divTot = div.state === 'ok' ? div.total : null;
+            const total = unreal + real + (divTot || 0);
+            const value = m.attualeTot;
+            // XIRR: versamenti negativi, vendite e cedole positive, valore attuale (al netto delle tasse sul latente) come incasso finale
+            let rate = null, rateWhy = '', flowsOut = [];
+            const dated = trades.filter(t => t.date).map(t => t.date).sort();
+            if (!trades.length) rateWhy = 'nessuna operazione';
+            else if (trades.some(t => !t.date)) rateWhy = 'alcune operazioni non hanno data («Saldo iniziale»)';
+            else if (!dated.length || (Date.parse(today) - Date.parse(dated[0])) / 864e5 < 90) rateWhy = 'periodo inferiore a 90 giorni';
+            else if (div.state !== 'ok') rateWhy = 'cedole non disponibili';
+            else {
+                const flows = [];
+                trades.forEach(t => flows.push({ date: t.date, amt: t.type === 'buy' ? -(t.qty * t.price + t.fee) : t.qty * t.price - t.fee }));
+                div.flows.forEach(f => flows.push(f));
+                if (value > 0) flows.push({ date: today, amt: net ? value - Math.max(0, m.diffLorda) * taxRate : value });
+                rate = xirr(flows);
+                if (rate === null) rateWhy = 'non calcolabile';
+                flowsOut = flows;
+            }
+            return { item, pos, unreal, real, latent: m.diffLorda, divTot, divState: div.state, total, value, rate, rateWhy, flows: flowsOut, bought: pos.bought, ok: !trades.some(t => !t.date) && dated.length > 0 };
+        }
+        function renderReturns() {
+            const body = document.getElementById('ret-body');
+            if (!body) return;
+            if (!histCache) loadHistCache();
+            const net = document.getElementById('retNet').checked;
+            const items = portfolio.filter(i => (i.trades || []).length);
+            items.forEach(i => { if (i.dividend !== 'Accumulo' && !histCache[i.ticker] && !histState[i.ticker]) setTimeout(() => loadHist(i, false), 0); });
+            const rows = items.map(i => returnRow(i, net));
+            const sumEl = document.getElementById('ret-sum'), notes = document.getElementById('ret-notes');
+            if (!rows.length) { sumEl.innerHTML = ''; notes.innerHTML = ''; body.innerHTML = '<p class="py-6 text-center text-xs text-slate-500 dark:text-slate-400">Registra almeno un acquisto (Operazioni) per vedere il rendimento.</p>'; return; }
+            const col = v => v >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400';
+            const sgn = v => (v > 0 ? '+' : '') + fmtCurrency(v);
+            const pct = (v, base) => base > 0 ? `${v >= 0 ? '+' : '−'}${fmtNumber(Math.abs(v / base * 100), 2)}%` : '—';
+            const sum = k => rows.reduce((a, r) => a + (r[k] || 0), 0);
+            const T = { bought: sum('bought'), value: sum('value'), unreal: sum('unreal'), real: sum('real'), div: sum('divTot'), total: sum('total') };
+            const pending = rows.filter(r => r.divState === 'loading').length;
+            const tile = (k, v, cls = '') => `<div class="rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 px-3 py-2"><div class="text-slate-500 dark:text-slate-400">${k}</div><div class="font-bold text-sm ${cls || 'text-slate-900 dark:text-white'}">${v}</div></div>`;
+            const allOk = rows.every(r => r.ok) && rows.every(r => r.rateWhy === '' );
+            const pRate = allOk ? xirr(rows.flatMap(r => r.flows)) : null;
+            sumEl.innerHTML = tile('Totale acquistato', fmtCurrency(T.bought)) + tile('Valore attuale', fmtCurrency(T.value)) +
+                tile('Cedole incassate' + (net ? ' (nette)' : ''), pending ? '…' : fmtCurrency(T.div)) +
+                tile('Rendimento totale', `${sgn(T.total)} <span class="font-semibold">(${pct(T.total, T.bought)})</span>${pRate !== null ? `<div class="text-[11px] font-semibold">${pRate >= 0 ? '+' : '−'}${fmtNumber(Math.abs(pRate * 100), 1)}% annuo</div>` : ''}`, col(T.total));
+            const th = 'px-2 py-1.5 font-medium text-slate-500 dark:text-slate-400';
+            const stick = 'sticky left-0 z-10 bg-white dark:bg-slate-900 px-2 py-1.5 text-left';
+            body.innerHTML = `<table class="w-full text-center text-xs whitespace-nowrap">
+                <thead><tr><th class="sticky left-0 z-10 bg-white dark:bg-slate-900 px-2 py-1.5 text-left font-medium text-slate-500 dark:text-slate-400">ETF</th><th class="${th}">Acquistato</th><th class="${th}">Valore attuale</th><th class="${th}">Plus/minus capitale</th><th class="${th}">Cedole</th><th class="${th}">Rendimento totale</th><th class="${th}">%</th><th class="${th}">Annuo</th></tr></thead>
+                <tbody>${rows.map(r => {
+                    const cap = r.unreal + r.real;
+                    const capTip = `Latente: ${fmtCurrency(r.unreal)} · Realizzata: ${fmtCurrency(r.real)}`;
+                    const divCell = r.divState === 'ok' ? fmtCurrency(r.divTot) : (r.divState === 'loading' ? '…' : '<span title="' + ({ err: 'Storico dividendi non disponibile', nodate: 'Aggiungi la data degli acquisti (Operazioni) per calcolare le cedole', fx: 'Cambio non disponibile' }[r.divState] || '') + '">n/d</span>');
+                    return `<tr onclick="openTradesModal('${r.item.id}')" class="border-t border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer">
+                        <td class="${stick} font-semibold ${''}">${escHtml(r.item.ticker)}${r.rateWhy.includes('data') ? ' <span title="Alcune operazioni non hanno data: cedole e annuo non sono affidabili. Aggiungila dalle Operazioni." class="text-amber-600">⚠</span>' : ''}</td>
+                        <td class="px-2 py-1.5">${fmtCurrency(r.bought)}</td><td class="px-2 py-1.5">${r.value > 0 ? fmtCurrency(r.value) : '—'}</td>
+                        <td class="px-2 py-1.5 ${col(cap)}" title="${capTip}">${sgn(cap)}</td><td class="px-2 py-1.5">${divCell}</td>
+                        <td class="px-2 py-1.5 font-bold ${col(r.total)}">${sgn(r.total)}</td><td class="px-2 py-1.5 font-semibold ${col(r.total)}">${pct(r.total, r.bought)}</td>
+                        <td class="px-2 py-1.5" title="${r.rate === null ? 'Non disponibile: ' + r.rateWhy : 'Rendimento annuo ponderato per i tempi (XIRR)'}">${r.rate === null ? '—' : `<span class="font-semibold ${col(r.rate)}">${r.rate >= 0 ? '+' : '−'}${fmtNumber(Math.abs(r.rate * 100), 1)}%</span>`}</td></tr>`;
+                }).join('')}
+                <tr class="border-t-2 border-slate-300 dark:border-slate-600 font-bold"><td class="${stick}">Totale</td><td class="px-2 py-1.5">${fmtCurrency(T.bought)}</td><td class="px-2 py-1.5">${fmtCurrency(T.value)}</td>
+                    <td class="px-2 py-1.5 ${col(T.unreal + T.real)}">${sgn(T.unreal + T.real)}</td><td class="px-2 py-1.5">${pending ? '…' : fmtCurrency(T.div)}</td>
+                    <td class="px-2 py-1.5 ${col(T.total)}">${sgn(T.total)}</td><td class="px-2 py-1.5 ${col(T.total)}">${pct(T.total, T.bought)}</td><td class="px-2 py-1.5">${pRate === null ? '—' : `${pRate >= 0 ? '+' : '−'}${fmtNumber(Math.abs(pRate * 100), 1)}%`}</td></tr>
+                </tbody></table>`;
+            const n = [];
+            if (pending) n.push(`Recupero dello storico dividendi in corso per ${pending} ETF…`);
+            if (rows.some(r => r.rateWhy.includes('data'))) n.push('⚠ Alcune operazioni sono «Saldo iniziale» senza data: aggiungi la data vera dalle Operazioni per avere cedole e rendimento annuo corretti.');
+            if (rows.some(r => r.divState === 'err')) n.push('Storico dividendi non disponibile per qualche ETF: le sue cedole non sono incluse.');
+            n.push('Clicca su una riga per aprire le operazioni di quell\'ETF.');
+            notes.innerHTML = n.map(x => `<div>${escHtml(x)}</div>`).join('');
         }
 
         // --- POPUP DI MODIFICA VALORE (evita modifiche accidentali nella tabella) ---
@@ -1966,6 +2089,7 @@
             renderCedole();
             renderHist();
             renderOps();
+            renderReturns();
         }
 
         function renderKPIs() {
